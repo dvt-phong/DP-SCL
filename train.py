@@ -22,7 +22,7 @@ import torch.nn.functional as F
 from src.models import *
 from src.mode_registry import (
     ALL_MODES, GRAPH_MODES, NO_GRAPH_MODES,
-    SIAMESE_MODES, SIMCLR_MODES, BYOL_MODES, DL_BASELINE_MODES, CL_MODES,
+    SUPCON_MODES, SIMCLR_MODES, BYOL_MODES, DL_BASELINE_MODES, CL_MODES,
     is_graph_mode, is_no_graph_mode, get_framework, describe_mode, resolve_backend_mode,
 )
 from src.data_validator import validate_data_for_mode, get_regeneration_command
@@ -44,7 +44,7 @@ myparser.add_argument('--lambda-con', type=float, default=0.1,
                       help='Weight for contrastive loss: Total = BCE + lambda * SupCon (default: 0.1)')
 # --- Hyperparameter tuning args (Framework 1 & 2) ---
 myparser.add_argument('--temperature', type=float, default=None,
-                      help='Contrastive loss temperature τ (Siamese default: 0.07, SimCLR default: 0.1)')
+                      help='Contrastive loss temperature τ (SupCon default: 0.07, SimCLR default: 0.1)')
 myparser.add_argument('--mask-ratio', type=float, default=None,
                       help='Augmentation mask ratio for time & feature masking (default: 0.15)')
 myparser.add_argument('--noise-std', type=float, default=None,
@@ -85,7 +85,7 @@ mode = args.mode
 backend_mode = resolve_backend_mode(mode)
 use_contrastive = args.contrastive
 lambda_con = args.lambda_con
-if args.mode == 'siamese_lstm_attn_lambda0':
+if args.mode == 'supcon_lstm_attn_lambda0':
     lambda_con = 0.0
     args.lambda_con = 0.0
 elif args.mode in {'dp_scl', 'tsn_supcon'}:
@@ -105,16 +105,16 @@ print(f"=== Running DP-SCL with mode: {mode} ===")
 print(f"=== {describe_mode(mode)} ===")
 if backend_mode != mode:
     print(f"=== Backend mode: {backend_mode} ===")
-is_siamese  = mode in SIAMESE_MODES
+is_supcon  = mode in SUPCON_MODES
 is_simclr   = mode in SIMCLR_MODES
 is_byol     = mode in BYOL_MODES
 is_dl_baseline = mode in DL_BASELINE_MODES
 is_cl       = mode in CL_MODES
 _uses_graph = is_graph_mode(mode)     # GRAPH branch
 _no_graph   = is_no_graph_mode(mode)  # NO-GRAPH branch
-if is_siamese:
-    print(f"=== Version 2.1: Siamese Network (encoder: {mode.replace('siamese_', '')}) ===")
-    print(f"=== Siamese Contrastive Learning: ON (λ={lambda_con}) ===")
+if is_supcon:
+    print(f"=== Version 2.1: SupCon Network (encoder: {mode.replace('supcon_', '')}) ===")
+    print(f"=== SupCon Contrastive Learning: ON (λ={lambda_con}) ===")
 elif is_simclr:
     print(f"=== Framework 2A: SimCLR (encoder: {mode.replace('simclr_', '')}, λ={lambda_con}) ===")
 elif is_byol:
@@ -143,7 +143,7 @@ _t_pipeline_start = time.time()
 _t_data_start = time.time()
 
 if _no_graph:
-    # === no_graph / siamese / CL: Load temporal data directly from numpy (no graph dependency) ===
+    # === no_graph / supcon / CL: Load temporal data directly from numpy (no graph dependency) ===
     from torch.utils.data import DataLoader, TensorDataset
 
     npz_path = os.path.join(input_dir, 'datastore', ds_config['npz_filename'])
@@ -533,19 +533,19 @@ if mode == 'bilstm_day':
         's2_attention_features': 16,
     })
 
-# --- Version 2.1: Siamese Network ---
-if is_siamese:
+# --- Version 2.1: SupCon Network ---
+if is_supcon:
     _hid = args.hidden_size if args.hidden_size is not None else 128
     param_dict.update({
-        'siamese_hidden_size': _hid,                                                      # encoder output dim
-        'siamese_proj_dim': _hid,                                                         # projection head output dim (match hidden)
-        'siamese_temperature': args.temperature if args.temperature is not None else 0.07, # SupCon temperature τ
-        'siamese_mask_ratio': args.mask_ratio if args.mask_ratio is not None else 0.15,    # augmentation: time & feature mask ratio
-        'siamese_noise_std': args.noise_std if args.noise_std is not None else 0.05,       # augmentation: Gaussian noise σ
-        'siamese_attn_heads': 4,                                                           # attention heads (lstm_attn, bilstm_attn)
-        'siamese_cls_dropout': 0.3,                                                        # classifier dropout
-        'siamese_num_layers': args.num_layers if args.num_layers is not None else 1,       # LSTM/BiLSTM num layers in encoder
-        'siamese_cls_hidden_layers': args.cls_layers,                                      # hidden layers in classifier head
+        'supcon_hidden_size': _hid,                                                      # encoder output dim
+        'supcon_proj_dim': _hid,                                                         # projection head output dim (match hidden)
+        'supcon_temperature': args.temperature if args.temperature is not None else 0.07, # SupCon temperature τ
+        'supcon_mask_ratio': args.mask_ratio if args.mask_ratio is not None else 0.15,    # augmentation: time & feature mask ratio
+        'supcon_noise_std': args.noise_std if args.noise_std is not None else 0.05,       # augmentation: Gaussian noise σ
+        'supcon_attn_heads': 4,                                                           # attention heads (lstm_attn, bilstm_attn)
+        'supcon_cls_dropout': 0.3,                                                        # classifier dropout
+        'supcon_num_layers': args.num_layers if args.num_layers is not None else 1,       # LSTM/BiLSTM num layers in encoder
+        'supcon_cls_hidden_layers': args.cls_layers,                                      # hidden layers in classifier head
         'use_action_weight': args.action_weight,                                            # learnable action importance
         'use_early_prediction': args.early_prediction,                                     # curriculum masking
         'early_min_weeks': args.early_min_weeks,                                           # min weeks for curriculum
@@ -553,10 +553,10 @@ if is_siamese:
     _extra = []
     if args.action_weight: _extra.append('ActionWeight=ON')
     if args.early_prediction: _extra.append(f'EarlyPred=ON(min={args.early_min_weeks}w)')
-    print(f"  [Siamese HP] hidden={param_dict['siamese_hidden_size']}, τ={param_dict['siamese_temperature']}, "
-          f"mask={param_dict['siamese_mask_ratio']}, noise={param_dict['siamese_noise_std']}, "
-          f"enc_layers={param_dict['siamese_num_layers']}, cls_layers={param_dict['siamese_cls_hidden_layers']}, λ={lambda_con}")
-    if _extra: print(f"  [Siamese++] {', '.join(_extra)}")
+    print(f"  [SupCon HP] hidden={param_dict['supcon_hidden_size']}, τ={param_dict['supcon_temperature']}, "
+          f"mask={param_dict['supcon_mask_ratio']}, noise={param_dict['supcon_noise_std']}, "
+          f"enc_layers={param_dict['supcon_num_layers']}, cls_layers={param_dict['supcon_cls_hidden_layers']}, λ={lambda_con}")
+    if _extra: print(f"  [SupCon++] {', '.join(_extra)}")
 
 # --- Framework 2: SimCLR + BYOL ---
 if is_cl:
@@ -604,14 +604,14 @@ print(f"\n⏱ Data loading: {_t_data_elapsed:.2f}s")
 
 # create the model
 _t_model_start = time.time()
-_is_graph_enhanced = (is_siamese or is_cl) and backend_mode.endswith('_graph')
+_is_graph_enhanced = (is_supcon or is_cl) and backend_mode.endswith('_graph')
 
-if is_siamese:
-    from src.models import SiameseLGB
-    model = SiameseLGB(mode=backend_mode, param_dict=param_dict)
+if is_supcon:
+    from src.models import SupConLGB
+    model = SupConLGB(mode=backend_mode, param_dict=param_dict)
     if _is_graph_enhanced:
         from src.models import GraphEnhancedWrapper
-        model = GraphEnhancedWrapper(model, param_dict, framework='siamese')
+        model = GraphEnhancedWrapper(model, param_dict, framework='supcon')
 elif is_simclr:
     from src.models import CLSimCLR, NTXentLoss
     model = CLSimCLR(mode=backend_mode, param_dict=param_dict)
@@ -634,10 +634,10 @@ else:
     model = LGB(param_dict, mode=mode, contrastive=use_contrastive)
 model = model.to(device)
 
-# create contrastive loss if enabled (siamese always uses SupCon)
-if use_contrastive or is_siamese:
+# create contrastive loss if enabled (supcon always uses SupCon)
+if use_contrastive or is_supcon:
     from src.models import SupConLoss
-    supcon_criterion = SupConLoss(temperature=param_dict.get('siamese_temperature', 0.07)).to(device)
+    supcon_criterion = SupConLoss(temperature=param_dict.get('supcon_temperature', 0.07)).to(device)
 
 # select the optimizer
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -727,7 +727,7 @@ for epoch in range(epoch_num):
 
         pred = model(sub_graph)
 
-        if is_siamese:
+        if is_supcon:
             pred, z1, z2 = pred
             bce_loss = bce_loss_fn(pred, ground_truth)
             if lambda_con == 0.0:
@@ -788,9 +788,9 @@ for epoch in range(epoch_num):
                 truth = sub_graph['labels'][:batch_size].view(-1, 1)
 
             pred = model(sub_graph)
-            # SimCLR/BYOL/Siamese trả logits trực tiếp khi eval (model.eval() context)
+            # SimCLR/BYOL/SupCon trả logits trực tiếp khi eval (model.eval() context)
             # use_contrastive (LGB) trả tuple (pred, embed) — cần unpack
-            if use_contrastive and not is_siamese and not is_cl:
+            if use_contrastive and not is_supcon and not is_cl:
                 pred, _ = pred  # discard projection during eval
             preds.append(pred)
             ground_truths.append(truth)
@@ -851,7 +851,7 @@ for epoch in range(epoch_num):
                         _tr = _sg['labels'][:_bs].view(-1, 1)
 
                     _pred = model(_sg)
-                    if use_contrastive and not is_siamese and not is_cl:
+                    if use_contrastive and not is_supcon and not is_cl:
                         _pred, _ = _pred
                     _ep_preds.append(_pred)
                     _ep_gts.append(_tr)
@@ -934,22 +934,22 @@ _lines.append(f'  Epochs:          {epoch_num}')
 _lines.append(f'  Learning Rate:   {learning_rate}')
 _lines.append(f'  Batch Size:      {args.batch_size}')
 _lines.append(f'  Sampling:        {args.sampling}')
-if is_siamese or is_cl or use_contrastive:
+if is_supcon or is_cl or use_contrastive:
     _lines.append(f'  λ (contrastive): {lambda_con}')
 _lines.append(f'  Device:          {device}')
 _lines.append(f'  Timestamp:       {_dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
 _lines.append('=' * 60)
 
 # Hyperparameters (framework-specific)
-if is_siamese:
+if is_supcon:
     _lines.append('')
-    _lines.append('  Hyperparameters (Siamese):')
-    _lines.append(f'    hidden_size={param_dict.get("siamese_hidden_size")}, '
-                  f'temperature={param_dict.get("siamese_temperature")}, '
-                  f'mask_ratio={param_dict.get("siamese_mask_ratio")}')
-    _lines.append(f'    noise_std={param_dict.get("siamese_noise_std")}, '
-                  f'enc_layers={param_dict.get("siamese_num_layers")}, '
-                  f'cls_layers={param_dict.get("siamese_cls_hidden_layers")}')
+    _lines.append('  Hyperparameters (SupCon):')
+    _lines.append(f'    hidden_size={param_dict.get("supcon_hidden_size")}, '
+                  f'temperature={param_dict.get("supcon_temperature")}, '
+                  f'mask_ratio={param_dict.get("supcon_mask_ratio")}')
+    _lines.append(f'    noise_std={param_dict.get("supcon_noise_std")}, '
+                  f'enc_layers={param_dict.get("supcon_num_layers")}, '
+                  f'cls_layers={param_dict.get("supcon_cls_hidden_layers")}')
     if args.action_weight:
         _lines.append(f'    action_weight=ON')
     if args.early_prediction:

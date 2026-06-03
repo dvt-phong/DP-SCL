@@ -1,21 +1,21 @@
 """
-Siamese Trainer — Framework 1: Training cho Siamese Network (12 modes).
+SupCon Trainer — Framework 1: Training cho SupCon Network (12 modes).
 
-NO-GRAPH modes (6): siamese_lstm, siamese_bilstm, siamese_lstm_attn,
-                     siamese_bilstm_attn, siamese_lstm_sa, siamese_bilstm_sa
-GRAPH modes (6):    siamese_lstm_graph, siamese_bilstm_graph, siamese_lstm_attn_graph,
-                     siamese_bilstm_attn_graph, siamese_lstm_sa_graph, siamese_bilstm_sa_graph
+NO-GRAPH modes (6): supcon_lstm, supcon_bilstm, supcon_lstm_attn,
+                     supcon_bilstm_attn, supcon_lstm_sa, supcon_bilstm_sa
+GRAPH modes (6):    supcon_lstm_graph, supcon_bilstm_graph, supcon_lstm_attn_graph,
+                     supcon_bilstm_attn_graph, supcon_lstm_sa_graph, supcon_bilstm_sa_graph
 """
 import os
 import torch
 
 from .base_trainer import BaseTrainer
 from .utils import load_temporal_data, load_graph_data, get_loss_fn
-from src.models import SiameseLGB, SupConLoss
+from src.models import SupConLGB, SupConLoss
 
 
-class SiameseTrainer(BaseTrainer):
-    """Trainer cho Siamese Network (Framework 1).
+class SupConTrainer(BaseTrainer):
+    """Trainer cho SupCon Network (Framework 1).
 
     Handles cả NO-GRAPH và GRAPH modes:
         NO-GRAPH: load temporal data từ .npz → DataLoader(tensor, tensor)
@@ -35,16 +35,16 @@ class SiameseTrainer(BaseTrainer):
             'activity_num': ds['activity_num'], 'sta_day': ds['sta_day'],
             'week_count': ds['week_count'], 'select_count': ds['week_count'],
             'cnn_in_channels': ds.get('days_per_week', 7),
-            # Siamese-specific params
-            'siamese_hidden_size': _hid,
-            'siamese_proj_dim': _hid,
-            'siamese_temperature': args.temperature if args.temperature is not None else 0.07,
-            'siamese_mask_ratio': args.mask_ratio if args.mask_ratio is not None else 0.15,
-            'siamese_noise_std': args.noise_std if args.noise_std is not None else 0.05,
-            'siamese_attn_heads': 4,
-            'siamese_cls_dropout': 0.3,
-            'siamese_num_layers': args.num_layers if args.num_layers is not None else 1,
-            'siamese_cls_hidden_layers': args.cls_layers,
+            # SupCon-specific params
+            'supcon_hidden_size': _hid,
+            'supcon_proj_dim': _hid,
+            'supcon_temperature': args.temperature if args.temperature is not None else 0.07,
+            'supcon_mask_ratio': args.mask_ratio if args.mask_ratio is not None else 0.15,
+            'supcon_noise_std': args.noise_std if args.noise_std is not None else 0.05,
+            'supcon_attn_heads': 4,
+            'supcon_cls_dropout': 0.3,
+            'supcon_num_layers': args.num_layers if args.num_layers is not None else 1,
+            'supcon_cls_hidden_layers': args.cls_layers,
             # Action Weighting & Early Prediction
             'use_action_weight':    getattr(args, 'action_weight', False),
             'use_early_prediction': getattr(args, 'early_prediction', False),
@@ -69,15 +69,15 @@ class SiameseTrainer(BaseTrainer):
         _extra = []
         if getattr(args, 'action_weight', False): _extra.append('ActionWeight=ON')
         if getattr(args, 'early_prediction', False): _extra.append(f'EarlyPred=ON(min={getattr(args, "early_min_weeks", 2)}w)')
-        print(f"  [Siamese HP] hidden={self.param_dict['siamese_hidden_size']}, "
-              f"τ={self.param_dict['siamese_temperature']}, "
-              f"mask={self.param_dict['siamese_mask_ratio']}, "
-              f"noise={self.param_dict['siamese_noise_std']}, "
-              f"enc_layers={self.param_dict['siamese_num_layers']}, "
-              f"cls_layers={self.param_dict['siamese_cls_hidden_layers']}, "
+        print(f"  [SupCon HP] hidden={self.param_dict['supcon_hidden_size']}, "
+              f"τ={self.param_dict['supcon_temperature']}, "
+              f"mask={self.param_dict['supcon_mask_ratio']}, "
+              f"noise={self.param_dict['supcon_noise_std']}, "
+              f"enc_layers={self.param_dict['supcon_num_layers']}, "
+              f"cls_layers={self.param_dict['supcon_cls_hidden_layers']}, "
               f"λ={args.lambda_con}")
-        if _extra: print(f"  [Siamese++] {', '.join(_extra)}")
-        if self._is_graph: print(f"  [Siamese] GRAPH mode — GraphEnhancedWrapper enabled")
+        if _extra: print(f"  [SupCon++] {', '.join(_extra)}")
+        if self._is_graph: print(f"  [SupCon] GRAPH mode — GraphEnhancedWrapper enabled")
 
     def build_dataloaders(self):
         input_dir = os.path.abspath(os.path.expanduser(str(self.args.indir)))
@@ -96,15 +96,15 @@ class SiameseTrainer(BaseTrainer):
                                    self.args.batch_size, self.args.sampling)
 
     def build_model(self):
-        temporal_model = SiameseLGB(mode=self.mode, param_dict=self.param_dict)
+        temporal_model = SupConLGB(mode=self.mode, param_dict=self.param_dict)
         if self._is_graph:
             from src.models import GraphEnhancedWrapper
-            self.model = GraphEnhancedWrapper(temporal_model, self.param_dict, framework='siamese')
+            self.model = GraphEnhancedWrapper(temporal_model, self.param_dict, framework='supcon')
         else:
             self.model = temporal_model
         self.model = self.model.to(self.device)
         self.supcon_criterion = SupConLoss(
-            temperature=self.param_dict.get('siamese_temperature', 0.07)
+            temperature=self.param_dict.get('supcon_temperature', 0.07)
         ).to(self.device)
 
     def build_loss_fn(self):

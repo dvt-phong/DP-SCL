@@ -2,13 +2,13 @@
 src.models — DP-SCL model package.
 
 Re-exports tất cả model classes để backward compatible:
-    from src.models import LGB, SiameseLGB, CLSimCLR, CLBYOL, ...
+    from src.models import LGB, SupConLGB, CLSimCLR, CLBYOL, ...
     from src.models import *
 
 Cấu trúc:
     common.py      — Shared building blocks (Context, GraphSage, GAT, CNN, LSTM, Attention, etc.)
     lgb.py         — LGB class (Framework 0: 18 modes)
-    siamese.py     — SiameseLGB + helpers (Framework 1: 6 modes)
+    supcon.py     — SupConLGB + helpers (Framework 1: 6 modes)
     contrastive.py — CLSimCLR + CLBYOL + helpers (Framework 2: 8 modes)
     baseline.py    — DropoutPredictor + helpers (Baseline)
     baselines/dl/  — Standalone DL baseline methods
@@ -31,9 +31,9 @@ from .common import (
 # === Legacy graph-temporal baselines (LGB) ===
 from .lgb import LGB
 
-# === Framework 1: Siamese Network ===
-from .siamese import (
-    SiameseLGB, SiameseEncoder, SiameseProjectionHead, SiameseClassifier,
+# === Framework 1: SupCon Network ===
+from .supcon import (
+    SupConLGB, SupConEncoder, SupConProjectionHead, SupConClassifier,
 )
 
 # === Framework 2: Contrastive Learning (SimCLR + BYOL) ===

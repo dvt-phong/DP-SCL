@@ -539,7 +539,7 @@ class MySelfAttention(nn.Module):
      - Multi-head: split → attend → concat
      - Output dim = attention_features (có thể ≠ input_features)]
 
-    Dùng bởi: LGB (hầu hết modes), Siamese (lstm_sa, bilstm_sa)
+    Dùng bởi: LGB (hầu hết modes), SupCon (lstm_sa, bilstm_sa)
     """
     def __init__(self, week_count, input_features, num_attention_heads, attention_features):
         super(MySelfAttention, self).__init__()
@@ -602,7 +602,7 @@ class LearnableQueryPool(nn.Module):
 
     query (1, 1, D)  attend →  sequence (B, T, D)  →  context (B, D)
 
-    Dùng bởi: LGB (bilstm_cnn), Siamese (lstm_attn, bilstm_attn), CL (lstm_attn, bilstm_attn)
+    Dùng bởi: LGB (bilstm_cnn), SupCon (lstm_attn, bilstm_attn), CL (lstm_attn, bilstm_attn)
     """
     def __init__(self, hidden_dim):
         super(LearnableQueryPool, self).__init__()
@@ -773,7 +773,7 @@ class SupConLoss(nn.Module):
      đẩy embedding khác label ra xa trong không gian projection.
      Sử dụng temperature scaling τ (nhỏ hơn → phân biệt mạnh hơn)]
 
-    Dùng bởi: LGB (contrastive mode), Siamese (tất cả modes)
+    Dùng bởi: LGB (contrastive mode), SupCon (tất cả modes)
     """
     def __init__(self, temperature=0.07):
         super(SupConLoss, self).__init__()
@@ -875,7 +875,7 @@ class ActionWeightedInput(nn.Module):
      Interpretability: get_weights() trả về weights × num_actions
      → uniform baseline = 1.0 → dễ so sánh (>1 = quan trọng, <1 = bị suppress)]
 
-    Dùng bởi: Siamese, SimCLR, BYOL (khi --action-weight ON)
+    Dùng bởi: SupCon, SimCLR, BYOL (khi --action-weight ON)
     """
     def __init__(self, num_actions=22):
         super(ActionWeightedInput, self).__init__()
@@ -915,7 +915,7 @@ class EarlyPredictionMask(nn.Module):
      Inference: dùng eval_weeks tuần (set từ ngoài bằng set_eval_weeks(n))
                 → eval từng week separately để đo early prediction capability]
 
-    Dùng bởi: Siamese, SimCLR, BYOL (khi --early-prediction ON)
+    Dùng bởi: SupCon, SimCLR, BYOL (khi --early-prediction ON)
     """
     def __init__(self, week_count=5, days_per_week=7, min_weeks=2):
         super(EarlyPredictionMask, self).__init__()
@@ -961,7 +961,7 @@ class EarlyPredictionMask(nn.Module):
 # ============================================================
 
 class AugmentationModule(nn.Module):
-    """Data augmentation cho Siamese/CL contrastive learning.
+    """Data augmentation cho SupCon/CL contrastive learning.
     Tạo hai "views" khác nhau của cùng một sample bằng random masking + noise.
     Chỉ nên gọi khi model.training == True (caller tự kiểm soát).
 
@@ -970,7 +970,7 @@ class AugmentationModule(nn.Module):
      2. Feature masking: zero-out random features (loại hoạt động) — Bernoulli mask
      3. Additive Gaussian noise: N(0, noise_std²)]
 
-    Dùng bởi: Siamese (tất cả modes), SimCLR (tất cả modes), BYOL (tất cả modes)
+    Dùng bởi: SupCon (tất cả modes), SimCLR (tất cả modes), BYOL (tất cả modes)
     """
     def __init__(self, time_mask_ratio=0.15, feat_mask_ratio=0.15, noise_std=0.05):
         super(AugmentationModule, self).__init__()

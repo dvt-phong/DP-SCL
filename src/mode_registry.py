@@ -12,10 +12,10 @@ Used by: train.py, train_experiment.py, trainers, and data validation.
     default, cnn, cnn2d, gat, cnn_gat,
     cross_attn, mba_cnn, mba_cnn_gat, bilstm_graph
 
-  Framework 1 (Siamese Network) — graph-enhanced:
-    siamese_lstm_graph, siamese_bilstm_graph,
-    siamese_lstm_attn_graph, siamese_bilstm_attn_graph,
-    siamese_lstm_sa_graph, siamese_bilstm_sa_graph
+  Framework 1 (SupCon Network) — graph-enhanced:
+    supcon_lstm_graph, supcon_bilstm_graph,
+    supcon_lstm_attn_graph, supcon_bilstm_attn_graph,
+    supcon_lstm_sa_graph, supcon_bilstm_sa_graph
 
   Framework 2A (SimCLR) — graph-enhanced:
     simclr_lstm_graph, simclr_bilstm_graph,
@@ -32,11 +32,11 @@ Used by: train.py, train_experiment.py, trainers, and data validation.
     no_graph, bilstm_cnn, bilstm_mha, bilstm_cross,
     mba_bilstm, cnn_only, mba_only, cnn_day, bilstm_day
 
-  Framework 1 (Siamese Network):
+  Framework 1 (SupCon Network):
     dp_scl,
-    siamese_lstm, siamese_bilstm,
-    siamese_lstm_mha, siamese_lstm_attn, siamese_lstm_attn_lambda0, siamese_bilstm_attn,
-    siamese_lstm_sa, siamese_bilstm_sa
+    supcon_lstm, supcon_bilstm,
+    supcon_lstm_mha, supcon_lstm_attn, supcon_lstm_attn_lambda0, supcon_bilstm_attn,
+    supcon_lstm_sa, supcon_bilstm_sa
 
   Framework 2A (SimCLR):
     simclr_lstm, simclr_bilstm,
@@ -67,13 +67,13 @@ GRAPH_MODES = frozenset({
     'mba_cnn_gat',      # GAT + MBA-CNN + LSTM
     'bilstm_graph',     # GraphSAGE + CNN 1D + BiLSTM
 
-    # Framework 1: Siamese Network — graph-enhanced (concat fusion)
-    'siamese_lstm_graph',         # Siamese + LSTM + GraphSAGE fusion
-    'siamese_bilstm_graph',       # Siamese + BiLSTM + GraphSAGE fusion
-    'siamese_lstm_attn_graph',    # Siamese + LSTM + MHA + GraphSAGE fusion
-    'siamese_bilstm_attn_graph',  # Siamese + BiLSTM + MHA + GraphSAGE fusion
-    'siamese_lstm_sa_graph',      # Siamese + LSTM + SelfAttn + GraphSAGE fusion
-    'siamese_bilstm_sa_graph',    # Siamese + BiLSTM + SelfAttn + GraphSAGE fusion
+    # Framework 1: SupCon Network — graph-enhanced (concat fusion)
+    'supcon_lstm_graph',         # SupCon + LSTM + GraphSAGE fusion
+    'supcon_bilstm_graph',       # SupCon + BiLSTM + GraphSAGE fusion
+    'supcon_lstm_attn_graph',    # SupCon + LSTM + MHA + GraphSAGE fusion
+    'supcon_bilstm_attn_graph',  # SupCon + BiLSTM + MHA + GraphSAGE fusion
+    'supcon_lstm_sa_graph',      # SupCon + LSTM + SelfAttn + GraphSAGE fusion
+    'supcon_bilstm_sa_graph',    # SupCon + BiLSTM + SelfAttn + GraphSAGE fusion
 
     # Framework 2A: SimCLR — graph-enhanced (concat fusion)
     'simclr_lstm_graph',          # SimCLR + LSTM + GraphSAGE fusion
@@ -103,17 +103,17 @@ NO_GRAPH_MODES = frozenset({
     'cnn_day',          # CNN 1D (days as channels) + LSTM
     'bilstm_day',       # CNN 1D (days as channels) + BiLSTM
 
-    # Framework 1: Siamese Network
-    'dp_scl',           # DP-SCL alias: siamese_lstm_attn + SupCon, lambda=0.1, tau=0.07
+    # Framework 1: SupCon Network
+    'dp_scl',           # DP-SCL alias: supcon_lstm_attn + SupCon, lambda=0.1, tau=0.07
     'tsn_supcon',       # Backward-compatible legacy alias for DP-SCL
-    'siamese_lstm',         # Siamese + LSTM encoder
-    'siamese_bilstm',       # Siamese + BiLSTM encoder
-    'siamese_lstm_mha',     # Siamese + LSTM + Multi-Head Attention + mean pooling
-    'siamese_lstm_attn',    # Siamese + LSTM + Multi-Head Attention + LearnableQueryPool
-    'siamese_lstm_attn_lambda0',  # Siamese + LSTM + MHA + LQP, BCE only via lambda=0
-    'siamese_bilstm_attn',  # Siamese + BiLSTM + Multi-Head Attention + LearnableQueryPool
-    'siamese_lstm_sa',      # Siamese + LSTM + Custom SelfAttention (sinusoidal PE)
-    'siamese_bilstm_sa',    # Siamese + BiLSTM + Custom SelfAttention (sinusoidal PE)
+    'supcon_lstm',         # SupCon + LSTM encoder
+    'supcon_bilstm',       # SupCon + BiLSTM encoder
+    'supcon_lstm_mha',     # SupCon + LSTM + Multi-Head Attention + mean pooling
+    'supcon_lstm_attn',    # SupCon + LSTM + Multi-Head Attention + LearnableQueryPool
+    'supcon_lstm_attn_lambda0',  # SupCon + LSTM + MHA + LQP, BCE only via lambda=0
+    'supcon_bilstm_attn',  # SupCon + BiLSTM + Multi-Head Attention + LearnableQueryPool
+    'supcon_lstm_sa',      # SupCon + LSTM + Custom SelfAttention (sinusoidal PE)
+    'supcon_bilstm_sa',    # SupCon + BiLSTM + Custom SelfAttention (sinusoidal PE)
 
     # Framework 2A: SimCLR
     'simclr_lstm',          # SimCLR + LSTM + NT-Xent Loss
@@ -142,7 +142,7 @@ NO_GRAPH_MODES = frozenset({
 
 DP_SCL_MODE = 'dp_scl'
 LEGACY_DP_SCL_ALIAS = 'tsn_supcon'
-DP_SCL_BACKEND_MODE = 'siamese_lstm_attn'
+DP_SCL_BACKEND_MODE = 'supcon_lstm_attn'
 
 # All valid modes
 ALL_MODES = GRAPH_MODES | NO_GRAPH_MODES
@@ -150,15 +150,15 @@ ALL_MODES = GRAPH_MODES | NO_GRAPH_MODES
 # ============================================================
 # Framework classification
 # ============================================================
-SIAMESE_MODES = frozenset({
+SUPCON_MODES = frozenset({
     m for m in ALL_MODES
-    if m.startswith('siamese_') or m in {DP_SCL_MODE, LEGACY_DP_SCL_ALIAS}
+    if m.startswith('supcon_') or m in {DP_SCL_MODE, LEGACY_DP_SCL_ALIAS}
 })
 SIMCLR_MODES  = frozenset({m for m in ALL_MODES if m.startswith('simclr_')})
 BYOL_MODES    = frozenset({m for m in ALL_MODES if m.startswith('byol_')})
 DL_BASELINE_MODES = frozenset({m for m in ALL_MODES if m.startswith('dl_')})
 CL_MODES      = SIMCLR_MODES | BYOL_MODES             # Framework 2: all contrastive
-LGB_MODES     = ALL_MODES - SIAMESE_MODES - CL_MODES - DL_BASELINE_MODES  # Legacy graph-temporal baselines
+LGB_MODES     = ALL_MODES - SUPCON_MODES - CL_MODES - DL_BASELINE_MODES  # Legacy graph-temporal baselines
 
 
 def is_graph_mode(mode):
@@ -174,10 +174,10 @@ def is_no_graph_mode(mode):
 def get_framework(mode):
     """Trả tên framework cho mode.
 
-    Returns: 'lgb', 'siamese', 'simclr', 'byol'
+    Returns: 'lgb', 'supcon', 'simclr', 'byol'
     """
-    if mode in SIAMESE_MODES:
-        return 'siamese'
+    if mode in SUPCON_MODES:
+        return 'supcon'
     elif mode in SIMCLR_MODES:
         return 'simclr'
     elif mode in BYOL_MODES:
@@ -225,7 +225,7 @@ def describe_mode(mode):
 
     fw_labels = {
         'lgb': 'Legacy graph-temporal baselines',
-        'siamese': 'Framework 1: Siamese Network',
+        'supcon': 'Framework 1: SupCon Network',
         'simclr': 'Framework 2A: SimCLR',
         'byol': 'Framework 2B: BYOL',
         'dl_baseline': 'Baseline DL',

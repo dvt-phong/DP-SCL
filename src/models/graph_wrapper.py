@@ -1,13 +1,13 @@
 """
 GraphEnhancedWrapper — Kiến trúc 2 luồng song song.
 
-Luồng 1 (Temporal): Siamese / SimCLR / BYOL — xử lý seq_feat
+Luồng 1 (Temporal): SupCon / SimCLR / BYOL — xử lý seq_feat
 Luồng 2 (Graph):    Context Embedding → GraphSage — xử lý graph structure
 
 Fusion: concat(h_temporal, h_graph) → FC → ReLU → Classifier → logits
 
 Điểm quan trọng:
-    - Temporal model (Siamese/SimCLR/BYOL) KHÔNG biết gì về graph
+    - Temporal model (SupCon/SimCLR/BYOL) KHÔNG biết gì về graph
     - Contrastive loss (SupCon/NT-Xent/BYOL) chỉ hoạt động trên Luồng 1
     - Classification loss (BCE) dùng representation đã fusion từ cả 2 luồng
     - Graph branch chạy độc lập, không bị ảnh hưởng bởi augmentation
@@ -26,23 +26,23 @@ class GraphEnhancedWrapper(nn.Module):
         Luồng 2: Context → GraphSage → h_graph (B, G)
         Fusion:  concat(h_temporal, h_graph) → FC(H+G, H) → ReLU → Classifier → logits
 
-    Supported temporal models: SiameseLGB, CLSimCLR, CLBYOL
+    Supported temporal models: SupConLGB, CLSimCLR, CLBYOL
     Each must implement forward_features() method.
 
     Training output depends on temporal model type:
-        Siamese/SimCLR: (logits_fused, z1, z2)
+        SupCon/SimCLR: (logits_fused, z1, z2)
         BYOL:           (logits_fused, byol_loss)
 
     Inference:
         logits_fused (B, 1)
     """
 
-    def __init__(self, temporal_model, param_dict, framework='siamese'):
+    def __init__(self, temporal_model, param_dict, framework='supcon'):
         """
         Args:
-            temporal_model: SiameseLGB, CLSimCLR, hoặc CLBYOL instance
+            temporal_model: SupConLGB, CLSimCLR, hoặc CLBYOL instance
             param_dict: dict chứa graph-related params (context_dim, output_features, etc.)
-            framework: 'siamese', 'simclr', hoặc 'byol' — xác định output format
+            framework: 'supcon', 'simclr', hoặc 'byol' — xác định output format
         """
         super(GraphEnhancedWrapper, self).__init__()
         self.temporal_model = temporal_model
@@ -54,8 +54,8 @@ class GraphEnhancedWrapper(nn.Module):
 
         # --- Fusion ---
         # H = temporal hidden_size (128), G = graph output_features (16)
-        if framework == 'siamese':
-            temporal_dim = param_dict.get('siamese_hidden_size', 128)
+        if framework == 'supcon':
+            temporal_dim = param_dict.get('supcon_hidden_size', 128)
         else:
             temporal_dim = param_dict.get('cl_hidden_size', 128)
         graph_dim = param_dict.get('output_features', 16)
@@ -67,10 +67,10 @@ class GraphEnhancedWrapper(nn.Module):
 
         # --- Classifier (on fused representation) ---
         cls_dropout = 0.3
-        if framework == 'siamese':
-            from .siamese import SiameseClassifier
-            cls_hidden_layers = param_dict.get('siamese_cls_hidden_layers', 1)
-            self.classifier = SiameseClassifier(
+        if framework == 'supcon':
+            from .supcon import SupConClassifier
+            cls_hidden_layers = param_dict.get('supcon_cls_hidden_layers', 1)
+            self.classifier = SupConClassifier(
                 in_dim=temporal_dim, hidden_dim=64, dropout=cls_dropout,
                 num_hidden_layers=cls_hidden_layers
             )
@@ -115,7 +115,7 @@ class GraphEnhancedWrapper(nn.Module):
         Fusion:  concat → FC → classifier → logits
 
         Returns depend on framework and training/eval mode:
-            Siamese/SimCLR training: (logits_fused, z1, z2)
+            SupCon/SimCLR training: (logits_fused, z1, z2)
             BYOL training:          (logits_fused, byol_loss)
             Inference (all):        logits_fused
         """
@@ -135,7 +135,7 @@ class GraphEnhancedWrapper(nn.Module):
                 logits = self.classifier(h_fused)
                 return logits, byol_loss
             else:
-                # Siamese/SimCLR: forward_features returns (h1, z1, z2)
+                # SupCon/SimCLR: forward_features returns (h1, z1, z2)
                 h_temporal, z1, z2 = temporal_out
                 h_fused = self.fusion_fc(torch.cat([h_temporal, h_graph], dim=-1))
                 logits = self.classifier(h_fused)

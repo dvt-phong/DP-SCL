@@ -1,25 +1,27 @@
 # DP-SCL
 
-DP-SCL is a PyTorch implementation for MOOC dropout prediction with a Siamese temporal encoder and supervised contrastive learning.
-
-The main model uses two augmented views of each learner activity sequence, a shared LSTM + multi-head attention encoder, a projection head for supervised contrastive learning, and a binary classifier for dropout prediction.
+DP-SCL is a PyTorch implementation for MOOC dropout prediction using supervised contrastive learning (SupCon). The proposed model builds two augmented views of each learner activity sequence, encodes them with a shared temporal encoder, optimizes a SupCon projection space, and predicts dropout with a binary classifier.
 
 ## Repository Layout
 
 - `train.py`: single-run training entry point.
-- `train_experiment.py`: protocol runner for ML, DL, and DP-SCL experiments.
-- `experiment_sensitivity_runner.py`: shared runner for lambda/tau sensitivity studies.
-- `run_scripts/`: reproducible experiment scripts.
-- `src/models/siamese.py`: DP-SCL model implementation.
-- `src/mode_registry.py`: mode aliases and backend resolution.
-- `baselines/`: ML and DL baselines.
-- `docs/`: technical notes and method descriptions.
+- `train_experiment.py`: protocol runner for ML baselines, DL baselines, and DP-SCL.
+- `train_ml_baseline.py`: standalone ML baseline runner.
+- `summarize_baseline_results.py`: helper for summarizing baseline result files.
+- `run_scripts/run_dp_scl.py`: convenience wrapper for running DP-SCL through `train_experiment.py`.
+- `src/models/supcon.py`: DP-SCL/SupCon model implementation.
+- `src/models/common.py`: shared layers, augmentation, and `SupConLoss`.
+- `src/mode_registry.py`: supported modes and alias resolution.
+- `src/dataset_config.py`: dataset-specific filenames and tensor dimensions.
+- `src/dataprocess/`: preprocessing scripts.
+- `src/graphgeneration/` and `src/linkprediction/`: graph construction utilities.
+- `baselines/`: ML and DL baseline implementations.
 
 ## Data
 
-This repository does not include raw datasets, generated `.npz` files, graph files, checkpoints, logs, or experiment outputs.
+Raw datasets, generated `.npz` files, graph files, checkpoints, logs, and experiment outputs are not included.
 
-Expected generated data layout:
+Generated data is expected under:
 
 ```text
 datastore/
@@ -27,27 +29,42 @@ datastore/
   StrongClassmatesGraph.pkl
 ```
 
-For temporal-only DP-SCL experiments, `all_data_std.npz` is sufficient. Graph-based legacy modes additionally require `StrongClassmatesGraph.pkl`.
+Dataset-specific filenames:
+
+| Dataset | Temporal file | Graph file |
+| --- | --- | --- |
+| `xuetangx` | `all_data_std.npz` | `StrongClassmatesGraph.pkl` |
+| `oulad` | `oulad_data_std.npz` | `oulad_StrongClassmatesGraph.pkl` |
+| `snap` | `snap_data_std.npz` | `snap_StrongClassmatesGraph.pkl` |
+
+DP-SCL only needs the temporal `.npz` file. Graph files are only required for graph-enhanced modes.
+
+The temporal `.npz` format is:
+
+```text
+t_data:  (N_train, week_count, days_per_week, activity_num)
+t_label: (N_train,)
+v_data:  (N_test, week_count, days_per_week, activity_num)
+v_label: (N_test,)
+```
 
 ## Setup
-
-Create an environment and install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-PyTorch and PyTorch Geometric installation can depend on CUDA version. If the default install fails, install the matching wheels from the official PyTorch and PyG instructions, then install the remaining requirements.
+PyTorch and PyTorch Geometric wheels depend on the local CUDA setup. If installation fails, install the matching PyTorch/PyG wheels first, then rerun the requirements install.
 
 ## Quick Start
 
-Run DP-SCL for 15 epochs:
+Run one DP-SCL training job:
 
 ```bash
-python train.py -indir . -outdir . -mode dp_scl -e 15 --dataset xuetangx
+python train.py -indir . -outdir . -mode dp_scl --dataset xuetangx -e 15
 ```
 
-Run the protocol experiment for DP-SCL:
+Run the DP-SCL protocol experiment:
 
 ```bash
 python train_experiment.py \
@@ -61,20 +78,49 @@ python train_experiment.py \
   --max-epochs 15
 ```
 
-Run lambda and tau sensitivity with epoch-average summaries:
+Equivalent convenience wrapper:
 
 ```bash
-bash run_scripts/run_lambda_tau_sensitivity_5seed.sh --seeds 42 --force
+python run_scripts/run_dp_scl.py -indir . -outdir . --dataset xuetangx --seeds 42 --max-epochs 15
 ```
 
-Outputs are written under `results/` and `result_write/`, both ignored by git.
+Run all protocol groups:
+
+```bash
+python train_experiment.py -indir . -outdir . --dataset xuetangx --models all
+```
+
+Outputs are written under `results/`.
 
 ## Main Modes
 
-- `dp_scl`: public DP-SCL mode, mapped to the `siamese_lstm_attn` backend.
-- `tsn_supcon`: legacy alias kept for backward compatibility.
-- `siamese_lstm_attn`: concrete backend implementation used by DP-SCL.
+- `dp_scl`: public DP-SCL mode. Internally resolves to `supcon_lstm_attn`.
+- `tsn_supcon`: legacy public alias for DP-SCL.
+- `supcon_lstm_attn`: concrete SupCon backend used by DP-SCL.
+- `supcon_lstm`, `supcon_bilstm`, `supcon_lstm_mha`, `supcon_bilstm_attn`, `supcon_lstm_sa`, `supcon_bilstm_sa`: SupCon encoder variants.
+- `simclr_*` and `byol_*`: self-supervised contrastive alternatives kept in the mode registry.
+- `dl_*` and `ml_*`: baseline families used by `train_experiment.py`.
+
+## DP-SCL Objective
+
+During training, DP-SCL minimizes:
+
+```text
+loss = BCEWithLogits(logits, label) + lambda_con * SupConLoss(z1, z2, label)
+```
+
+Default proposed settings:
+
+```text
+lambda_con = 0.1
+temperature = 0.07
+mask_ratio = 0.15
+noise_std = 0.05
+hidden_size = 128
+```
+
+During evaluation, augmentation and projection outputs are disabled; the model returns dropout logits only.
 
 ## Citation
 
-If you use this code, cite the repository and the related paper/work describing DP-SCL.
+If you use this code, cite the repository and the related work describing DP-SCL.

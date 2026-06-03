@@ -17,7 +17,7 @@ from baselines.dl import DL_BASELINE_REGISTRY, build_dl_baseline
 from baselines.ml import DEFAULT_ML_ORDER, ML_BASELINE_REGISTRY
 from baselines.utils.metrics import get_estimator_scores
 from src.dataset_config import get_dataset_config
-from src.models import SiameseLGB, SupConLoss
+from src.models import SupConLGB, SupConLoss
 from src.mode_registry import resolve_backend_mode
 
 
@@ -224,15 +224,15 @@ def make_dp_scl_param_dict(args, ds_config):
         "week_count": ds_config["week_count"],
         "select_count": ds_config["week_count"],
         "cnn_in_channels": ds_config["days_per_week"],
-        "siamese_hidden_size": args.hidden_size,
-        "siamese_proj_dim": args.hidden_size,
-        "siamese_temperature": args.temperature,
-        "siamese_mask_ratio": args.mask_ratio,
-        "siamese_noise_std": args.noise_std,
-        "siamese_attn_heads": 4,
-        "siamese_cls_dropout": 0.3,
-        "siamese_num_layers": args.num_layers,
-        "siamese_cls_hidden_layers": args.cls_layers,
+        "supcon_hidden_size": args.hidden_size,
+        "supcon_proj_dim": args.hidden_size,
+        "supcon_temperature": args.temperature,
+        "supcon_mask_ratio": args.mask_ratio,
+        "supcon_noise_std": args.noise_std,
+        "supcon_attn_heads": 4,
+        "supcon_cls_dropout": 0.3,
+        "supcon_num_layers": args.num_layers,
+        "supcon_cls_hidden_layers": args.cls_layers,
         "use_action_weight": False,
         "use_early_prediction": False,
         "early_min_weeks": 2,
@@ -389,7 +389,7 @@ def train_dp_scl(model_name, X, y, train_idx, val_idx, test_idx, args, ds_config
         X, y, train_idx, val_idx, test_idx, args.batch_size, args.num_workers
     )
     backend_mode = resolve_backend_mode(args.proposed_mode)
-    model = SiameseLGB(mode=backend_mode, param_dict=make_dp_scl_param_dict(args, ds_config)).to(device)
+    model = SupConLGB(mode=backend_mode, param_dict=make_dp_scl_param_dict(args, ds_config)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     bce = torch.nn.BCEWithLogitsLoss()
     supcon = SupConLoss(temperature=args.temperature).to(device)
@@ -628,7 +628,7 @@ def write_report(path, config, rows, summary_rows):
 
 def main():
     args = parse_args()
-    if args.proposed_mode == "siamese_lstm_attn_lambda0":
+    if args.proposed_mode == "supcon_lstm_attn_lambda0":
         args.lambda_con = 0.0
     elif args.proposed_mode in {"dp_scl", "tsn_supcon"}:
         args.lambda_con = 0.1

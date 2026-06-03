@@ -1,7 +1,7 @@
 """
-Siamese Network Architecture — Framework 1.
+SupCon Network Architecture — Framework 1.
 
-[Kỹ thuật tổng quan: Siamese Network + Supervised Contrastive Learning
+[Kỹ thuật tổng quan: SupCon Network + Supervised Contrastive Learning
  Pipeline: Input → Augmentation (training) → Shared Encoder → 2 views (h1, h2)
          → ProjectionHead → (z1, z2) L2-normalized
          → Classifier(h1) → logits
@@ -11,13 +11,13 @@ Hỗ trợ 6 modes:
 
 | Mode                 | Encoder = Shared Encoder        | Kỹ thuật chi tiết                                              |
 |----------------------|----------------------------------|----------------------------------------------------------------|
-| siamese_lstm         | LSTM                            | LSTM unidirectional, lấy h_n[-1]                               |
-| siamese_bilstm       | BiLSTM                          | BiLSTM, concat h_n[-2] + h_n[-1]                              |
-| siamese_lstm_mha     | LSTM + Multi-Head Attention     | LSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → mean pool |
-| siamese_lstm_attn    | LSTM + Multi-Head Attention     | LSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → LearnableQueryPool |
-| siamese_bilstm_attn  | BiLSTM + Multi-Head Attention   | BiLSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → LearnableQueryPool |
-| siamese_lstm_sa      | LSTM + Custom Self-Attention    | LSTM → MySelfAttention (sinusoidal PE, custom QKV) → mean pool |
-| siamese_bilstm_sa    | BiLSTM + Custom Self-Attention  | BiLSTM → MySelfAttention (sinusoidal PE, custom QKV) → mean pool |
+| supcon_lstm         | LSTM                            | LSTM unidirectional, lấy h_n[-1]                               |
+| supcon_bilstm       | BiLSTM                          | BiLSTM, concat h_n[-2] + h_n[-1]                              |
+| supcon_lstm_mha     | LSTM + Multi-Head Attention     | LSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → mean pool |
+| supcon_lstm_attn    | LSTM + Multi-Head Attention     | LSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → LearnableQueryPool |
+| supcon_bilstm_attn  | BiLSTM + Multi-Head Attention   | BiLSTM → nn.MultiheadAttention (4 heads) + LayerNorm + residual → LearnableQueryPool |
+| supcon_lstm_sa      | LSTM + Custom Self-Attention    | LSTM → MySelfAttention (sinusoidal PE, custom QKV) → mean pool |
+| supcon_bilstm_sa    | BiLSTM + Custom Self-Attention  | BiLSTM → MySelfAttention (sinusoidal PE, custom QKV) → mean pool |
 
 Giải thích viết tắt:
     - LSTM:    Long Short-Term Memory (unidirectional), h_n[-1] = last hidden state
@@ -41,8 +41,8 @@ from .common import (
 )
 
 
-class SiameseEncoder(nn.Module):
-    """Shared encoder cho Siamese Network — 6 variants.
+class SupConEncoder(nn.Module):
+    """Shared encoder cho SupCon Network — 6 variants.
 
     | encoder_type   | Architecture                                     | Output  |
     |----------------|--------------------------------------------------| --------|
@@ -65,7 +65,7 @@ class SiameseEncoder(nn.Module):
     """
     def __init__(self, encoder_type, input_size=22, hidden_size=128,
                  num_heads=4, dropout=0.1, num_layers=1, seq_count=35):
-        super(SiameseEncoder, self).__init__()
+        super(SupConEncoder, self).__init__()
         self.encoder_type = encoder_type
         self.hidden_size = hidden_size
 
@@ -133,14 +133,14 @@ class SiameseEncoder(nn.Module):
             return context
 
 
-class SiameseProjectionHead(nn.Module):
-    """Projection Head cho Siamese: Linear → ReLU → Linear → L2 Normalize.
+class SupConProjectionHead(nn.Module):
+    """Projection Head cho SupCon: Linear → ReLU → Linear → L2 Normalize.
     Chiếu h ∈ R^d vào unit hypersphere để SupCon hoạt động đúng.
 
     [Kỹ thuật: MLP 2-layer Projection Head → L2 Normalization]
     """
     def __init__(self, in_dim=128, proj_dim=128):
-        super(SiameseProjectionHead, self).__init__()
+        super(SupConProjectionHead, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, in_dim),
             nn.ReLU(),
@@ -152,8 +152,8 @@ class SiameseProjectionHead(nn.Module):
         return F.normalize(z, dim=1)
 
 
-class SiameseClassifier(nn.Module):
-    """Classifier cho Siamese: nhận h (representation), KHÔNG nhận z (projected).
+class SupConClassifier(nn.Module):
+    """Classifier cho SupCon: nhận h (representation), KHÔNG nhận z (projected).
 
     [Kỹ thuật: MLP classifier head
      num_hidden_layers=1: Linear(in→hid) → ReLU → Dropout → Linear(hid→1)
@@ -162,7 +162,7 @@ class SiameseClassifier(nn.Module):
     Output là logits (chưa qua sigmoid) — dùng với BCEWithLogitsLoss.
     """
     def __init__(self, in_dim=128, hidden_dim=64, dropout=0.3, num_hidden_layers=1):
-        super(SiameseClassifier, self).__init__()
+        super(SupConClassifier, self).__init__()
         layers = [nn.Linear(in_dim, hidden_dim), nn.ReLU(), nn.Dropout(dropout)]
         dim = hidden_dim
         for _ in range(num_hidden_layers - 1):
@@ -176,10 +176,10 @@ class SiameseClassifier(nn.Module):
         return self.net(x)
 
 
-class SiameseLGB(nn.Module):
-    """Siamese Network cho DP-SCL — Framework 1.
+class SupConLGB(nn.Module):
+    """SupCon Network cho DP-SCL — Framework 1.
 
-    [Kỹ thuật: Siamese Network + Supervised Contrastive Learning (SupCon)]
+    [Kỹ thuật: SupCon Network + Supervised Contrastive Learning (SupCon)]
 
     Kiến trúc:
         Input (B, 5, 7, 22) → flatten → (B, 35, 22)
@@ -189,9 +189,9 @@ class SiameseLGB(nn.Module):
         → Classifier(h1) → ŷ              (B, 1)
         Loss = BCE(ŷ, y) + λ × SupCon(z1, z2, y)
 
-    Modes: dp_scl, tsn_supcon, siamese_lstm, siamese_bilstm, siamese_lstm_mha,
-           siamese_lstm_attn, siamese_lstm_attn_lambda0,
-           siamese_bilstm_attn, siamese_lstm_sa, siamese_bilstm_sa
+    Modes: dp_scl, tsn_supcon, supcon_lstm, supcon_bilstm, supcon_lstm_mha,
+           supcon_lstm_attn, supcon_lstm_attn_lambda0,
+           supcon_bilstm_attn, supcon_lstm_sa, supcon_bilstm_sa
 
     Training vs Inference:
         Training:  augmentation ON, 2× forward qua encoder, return (logits, z1, z2)
@@ -200,39 +200,39 @@ class SiameseLGB(nn.Module):
     ENCODER_MAP = {
         'dp_scl': 'lstm_attn',
         'tsn_supcon': 'lstm_attn',
-        'siamese_lstm': 'lstm',
-        'siamese_bilstm': 'bilstm',
-        'siamese_lstm_mha': 'lstm_mha',
-        'siamese_lstm_attn': 'lstm_attn',
-        'siamese_lstm_attn_lambda0': 'lstm_attn',
-        'siamese_bilstm_attn': 'bilstm_attn',
-        'siamese_lstm_sa': 'lstm_sa',
-        'siamese_bilstm_sa': 'bilstm_sa',
+        'supcon_lstm': 'lstm',
+        'supcon_bilstm': 'bilstm',
+        'supcon_lstm_mha': 'lstm_mha',
+        'supcon_lstm_attn': 'lstm_attn',
+        'supcon_lstm_attn_lambda0': 'lstm_attn',
+        'supcon_bilstm_attn': 'bilstm_attn',
+        'supcon_lstm_sa': 'lstm_sa',
+        'supcon_bilstm_sa': 'bilstm_sa',
         # Graph-enhanced variants (same encoder, + GraphSage fusion)
-        'siamese_lstm_graph': 'lstm',
-        'siamese_bilstm_graph': 'bilstm',
-        'siamese_lstm_attn_graph': 'lstm_attn',
-        'siamese_bilstm_attn_graph': 'bilstm_attn',
-        'siamese_lstm_sa_graph': 'lstm_sa',
-        'siamese_bilstm_sa_graph': 'bilstm_sa',
+        'supcon_lstm_graph': 'lstm',
+        'supcon_bilstm_graph': 'bilstm',
+        'supcon_lstm_attn_graph': 'lstm_attn',
+        'supcon_bilstm_attn_graph': 'bilstm_attn',
+        'supcon_lstm_sa_graph': 'lstm_sa',
+        'supcon_bilstm_sa_graph': 'bilstm_sa',
     }
 
     def __init__(self, mode, param_dict):
-        super(SiameseLGB, self).__init__()
+        super(SupConLGB, self).__init__()
         assert mode in self.ENCODER_MAP, \
-            f"SiameseLGB mode must be one of {list(self.ENCODER_MAP.keys())}. Got: {mode}"
+            f"SupConLGB mode must be one of {list(self.ENCODER_MAP.keys())}. Got: {mode}"
 
         self.mode = mode
         encoder_type = self.ENCODER_MAP[mode]
 
         input_size = param_dict.get('activity_num', 22)
-        hidden_size = param_dict.get('siamese_hidden_size', 128)
-        proj_dim = param_dict.get('siamese_proj_dim', 128)
-        temperature = param_dict.get('siamese_temperature', 0.07)
-        mask_ratio = param_dict.get('siamese_mask_ratio', 0.15)
-        noise_std = param_dict.get('siamese_noise_std', 0.05)
-        num_heads = param_dict.get('siamese_attn_heads', 4)
-        cls_dropout = param_dict.get('siamese_cls_dropout', 0.3)
+        hidden_size = param_dict.get('supcon_hidden_size', 128)
+        proj_dim = param_dict.get('supcon_proj_dim', 128)
+        temperature = param_dict.get('supcon_temperature', 0.07)
+        mask_ratio = param_dict.get('supcon_mask_ratio', 0.15)
+        noise_std = param_dict.get('supcon_noise_std', 0.05)
+        num_heads = param_dict.get('supcon_attn_heads', 4)
+        cls_dropout = param_dict.get('supcon_cls_dropout', 0.3)
 
         self.week_count = param_dict.get('week_count', 5)
         self.days_per_week = param_dict.get('cnn_in_channels', 7)
@@ -258,22 +258,22 @@ class SiameseLGB(nn.Module):
             noise_std=noise_std
         )
         seq_count = self.week_count * self.days_per_week   # 35
-        self.encoder = SiameseEncoder(
+        self.encoder = SupConEncoder(
             encoder_type=encoder_type,
             input_size=input_size,
             hidden_size=hidden_size,
             num_heads=num_heads,
-            num_layers=param_dict.get('siamese_num_layers', 1),
+            num_layers=param_dict.get('supcon_num_layers', 1),
             seq_count=seq_count
         )
-        self.proj_head = SiameseProjectionHead(in_dim=hidden_size, proj_dim=proj_dim)
+        self.proj_head = SupConProjectionHead(in_dim=hidden_size, proj_dim=proj_dim)
         # Classifier chỉ tạo khi dùng standalone (NO-GRAPH).
         # Khi wrapped bởi GraphEnhancedWrapper, wrapper tạo classifier riêng trên fused features.
         self._standalone = not mode.endswith('_graph')
         if self._standalone:
-            self.classifier = SiameseClassifier(
+            self.classifier = SupConClassifier(
                 in_dim=hidden_size, hidden_dim=64, dropout=cls_dropout,
-                num_hidden_layers=param_dict.get('siamese_cls_hidden_layers', 1)
+                num_hidden_layers=param_dict.get('supcon_cls_hidden_layers', 1)
             )
 
     def encode(self, x):
@@ -317,7 +317,7 @@ class SiameseLGB(nn.Module):
     def forward_single(self, sub_graph):
         """Single-branch classifier path for BCE-only training.
 
-        This bypasses Siamese augmentation and projection heads while preserving
+        This bypasses SupCon augmentation and projection heads while preserving
         the module's current train/eval mode for encoder/classifier layers.
         """
         x = self._preprocess(sub_graph)

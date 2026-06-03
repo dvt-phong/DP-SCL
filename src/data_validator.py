@@ -11,7 +11,7 @@ Dùng bởi: train.py, run_mode.sh (qua CLI)
 
 Sử dụng CLI:
     python -m src.data_validator --mode default --dataset xuetangx
-    python -m src.data_validator --mode siamese_lstm --dataset snap
+    python -m src.data_validator --mode supcon_lstm --dataset snap
     python -m src.data_validator --mode mba_cnn --dataset oulad --datastore ./datastore
 """
 import os
@@ -158,7 +158,7 @@ def validate_data_for_mode(mode, dataset_name, datastore_dir):
     """Kiểm tra tất cả data files cần cho mode + dataset.
 
     Args:
-        mode: training mode (ví dụ: 'default', 'siamese_lstm', ...)
+        mode: training mode (ví dụ: 'default', 'supcon_lstm', ...)
         dataset_name: 'xuetangx', 'oulad', 'snap'
         datastore_dir: path đến thư mục datastore/
 

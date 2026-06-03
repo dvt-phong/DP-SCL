@@ -8,9 +8,9 @@ class DLLSTMMHALQ(DLBaselineBase):
 
     def __init__(self, param_dict):
         super().__init__(param_dict)
-        from src.models.siamese import SiameseEncoder
+        from src.models.supcon import SupConEncoder
 
-        self.encoder = SiameseEncoder(
+        self.encoder = SupConEncoder(
             encoder_type="lstm_attn",
             input_size=self.activity_num,
             hidden_size=self.hidden_size,

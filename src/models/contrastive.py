@@ -54,7 +54,7 @@ from .common import LearnableQueryPool, AugmentationModule, ActionWeightedInput,
 class CLEncoder(nn.Module):
     """Shared Encoder cho Framework 2 (SimCLR & BYOL) — 4 variants.
 
-    Tách biệt hoàn toàn với SiameseEncoder để ablation sạch.
+    Tách biệt hoàn toàn với SupConEncoder để ablation sạch.
 
     | encoder_type   | Architecture                              | Output  |
     |----------------|-------------------------------------------|---------|

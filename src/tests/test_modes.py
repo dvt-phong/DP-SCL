@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 # Thêm project root vào path
 sys.path.insert(0, '.')
-from src.models import LGB, GraphSage, GATNetwork, CNNFeatureExtractor, CrossAttentionFusion, MBACNNFeatureExtractor, SupConLoss, ProjectionHead, SiameseLGB, AugmentationModule, SiameseEncoder, SiameseProjectionHead, SiameseClassifier
+from src.models import LGB, GraphSage, GATNetwork, CNNFeatureExtractor, CrossAttentionFusion, MBACNNFeatureExtractor, SupConLoss, ProjectionHead, SupConLGB, AugmentationModule, SupConEncoder, SupConProjectionHead, SupConClassifier
 
 device = torch.device('cpu')  # test trên CPU
 
@@ -300,23 +300,23 @@ def test_contrastive():
 
 
 # ============================================================
-# Siamese parameters (Version 2.1)
+# SupCon parameters (Version 2.1)
 # ============================================================
-SIAMESE_PARAMS = {
-    'siamese_hidden_size': 128,
-    'siamese_proj_dim': 128,
-    'siamese_temperature': 0.07,
-    'siamese_mask_ratio': 0.15,
-    'siamese_noise_std': 0.05,
-    'siamese_attn_heads': 4,
-    'siamese_cls_dropout': 0.3,
+SUPCON_PARAMS = {
+    'supcon_hidden_size': 128,
+    'supcon_proj_dim': 128,
+    'supcon_temperature': 0.07,
+    'supcon_mask_ratio': 0.15,
+    'supcon_noise_std': 0.05,
+    'supcon_attn_heads': 4,
+    'supcon_cls_dropout': 0.3,
 }
 
-SIAMESE_MODES = ['siamese_lstm', 'siamese_bilstm', 'siamese_lstm_attn', 'siamese_bilstm_attn']
+SUPCON_MODES = ['supcon_lstm', 'supcon_bilstm', 'supcon_lstm_attn', 'supcon_bilstm_attn']
 
 
 def create_mock_no_graph_data(batch_size=8):
-    """Tạo mock data cho no_graph / siamese modes (seq_feat only)."""
+    """Tạo mock data cho no_graph / supcon modes (seq_feat only)."""
     seq_len = 5 * 7 * 22  # 770
     return {
         'batch_size': batch_size,
@@ -324,13 +324,13 @@ def create_mock_no_graph_data(batch_size=8):
     }
 
 
-def test_siamese_mode(mode_name, param_dict, batch_size=8):
-    """Test 1 siamese mode: tạo model, forward train + eval, kiểm tra output."""
+def test_supcon_mode(mode_name, param_dict, batch_size=8):
+    """Test 1 supcon mode: tạo model, forward train + eval, kiểm tra output."""
     print(f"\n{'='*60}")
-    print(f"  Testing siamese mode: {mode_name}")
+    print(f"  Testing supcon mode: {mode_name}")
     print(f"{'='*60}")
 
-    model = SiameseLGB(mode=mode_name, param_dict=param_dict).to(device)
+    model = SupConLGB(mode=mode_name, param_dict=param_dict).to(device)
 
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -358,10 +358,9 @@ def test_siamese_mode(mode_name, param_dict, batch_size=8):
     # --- Backward pass ---
     labels = torch.randint(0, 2, (batch_size, 1)).float()
     bce_loss = F.binary_cross_entropy_with_logits(logits, labels)
-    z_all = torch.cat([z1, z2], dim=0)
-    labels_all = torch.cat([labels.view(-1), labels.view(-1)])
+    z_all = torch.stack([z1, z2], dim=1)
     supcon = SupConLoss(temperature=0.07)
-    con_loss = supcon(z_all, labels_all)
+    con_loss = supcon(z_all, labels.view(-1))
     loss = bce_loss + 0.1 * con_loss
     loss.backward()
     print(f"  Backward pass:    ✅ (bce={bce_loss.item():.4f}, supcon={con_loss.item():.4f})")
@@ -378,7 +377,7 @@ def test_siamese_mode(mode_name, param_dict, batch_size=8):
     assert not hasattr(model, 'encoder2'), "Should NOT have separate encoder2 (shared weights)"
     print(f"  Shared weights:   ✅ (single encoder instance)")
 
-    print(f"  ✅ Siamese mode '{mode_name}' PASSED")
+    print(f"  ✅ SupCon mode '{mode_name}' PASSED")
     return {
         'mode': mode_name,
         'total_params': total_params,
@@ -390,17 +389,17 @@ def test_siamese_mode(mode_name, param_dict, batch_size=8):
     }
 
 
-def test_siamese_all():
-    """Test tất cả 4 siamese modes."""
+def test_supcon_all():
+    """Test tất cả 4 supcon modes."""
     print(f"\n{'='*60}")
-    print(f"  Testing ALL SIAMESE MODES (Version 2.1)")
+    print(f"  Testing ALL SUPCON MODES (Version 2.1)")
     print(f"{'='*60}")
 
-    siamese_results = []
-    for smode in SIAMESE_MODES:
-        params = {**BASE_PARAMS, **SIAMESE_PARAMS}
-        r = test_siamese_mode(smode, params)
-        siamese_results.append(r)
+    supcon_results = []
+    for smode in SUPCON_MODES:
+        params = {**BASE_PARAMS, **SUPCON_PARAMS}
+        r = test_supcon_mode(smode, params)
+        supcon_results.append(r)
 
     # Augmentation isolation: two calls should produce different views
     print(f"\n  --- Augmentation test ---")
@@ -412,8 +411,8 @@ def test_siamese_all():
     assert v1.shape == x.shape and v2.shape == x.shape
     print(f"  ✅ Augmentation produces different views with correct shape")
 
-    print(f"\n  ✅ ALL SIAMESE TESTS PASSED")
-    return siamese_results
+    print(f"\n  ✅ ALL SUPCON TESTS PASSED")
+    return supcon_results
 
 
 # ============================================================
@@ -522,12 +521,12 @@ if __name__ == '__main__':
         print(f"  ❌ Contrastive test FAILED: {e}")
         all_passed = False
 
-    # Test 12: Siamese modes (Version 2.1)
+    # Test 12: SupCon modes (Version 2.1)
     try:
-        siamese_results = test_siamese_all()
-        results.extend(siamese_results)
+        supcon_results = test_supcon_all()
+        results.extend(supcon_results)
     except Exception as e:
-        print(f"  ❌ Siamese test FAILED: {e}")
+        print(f"  ❌ SupCon test FAILED: {e}")
         import traceback; traceback.print_exc()
         all_passed = False
 
