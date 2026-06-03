@@ -1,0 +1,51 @@
+# === Large data files (exceed GitHub 100MB limit) ===
+datastore/
+prediction_data.tar.gz
+user_info.csv
+course_info.csv
+StrongClassmatesGraph.pkl
+
+# === Python cache ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# === IDE & Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# === Model checkpoints & large outputs ===
+*.pth
+*.pt
+*.ckpt
+*.pkl
+
+# === Results & Logs ===
+results/
+results_cl/
+result_write/
+logs/
+*.log
+
+# === Temporary & Backup files ===
+*.tmp
+*.log.tmp
+*.bak
+
+# === Environment ===
+.env
+venv/
+env/
+
+# === Gemini/Agent files ===
+.gemini/
+.agents/
