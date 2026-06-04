@@ -10,14 +10,4 @@ from train_experiment import main
 
 
 if __name__ == "__main__":
-    sys.argv = [
-        sys.argv[0],
-        *sys.argv[1:],
-        "--models",
-        "proposed",
-        "--proposed-name",
-        "DP-SCL",
-        "--proposed-mode",
-        "dp_scl",
-    ]
     main()
