@@ -1,4 +1,19 @@
 """
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Build an OULAD temporal NPZ for DP-SCL cross-dataset experiments.
+
+Reference sources:
+  OULAD dataset:
+  https://analyse.kmi.open.ac.uk/open_dataset
+
+Adaptation notes:
+  This is a DP-SCL dataset adapter, not copied from CA-TFHN. It engineers
+  OULAD-specific VLE activity features and dropout labels, then saves the
+  temporal NPZ format expected by DP-SCL.
+"""
+
+"""
 OULAD Preprocessing: 7 CSV → (N, 5, 7, 20) tensor → .npz
 
 Pipeline:

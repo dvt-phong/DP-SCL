@@ -1,3 +1,21 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Convert XuetangX/KDD Cup activity logs into per-enrollment daily
+  action-count tables for the first 35 course days.
+
+Reference source:
+  Adapted from CA-TFHN by codeds27:
+  https://github.com/codeds27/CA-TFHN
+  Original file:
+  https://github.com/codeds27/CA-TFHN/blob/main/src/dataprocess/0_process_user_activity_logs.py
+
+Adaptation notes:
+  The action taxonomy, 35-day window, and train/test feature-table outputs
+  follow CA-TFHN. Local changes include pandas/date handling adjustments and
+  grouped-column selection updates for compatibility.
+"""
+
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -59,4 +77,3 @@ train_enroll = list(set(list(train['enroll_id'])))
 test_enroll = list(set(list(test['enroll_id'])))
 all_num.loc[test_enroll].to_csv(os.path.join(output_data_dir, 'test_features_35.csv'))
 all_num.loc[train_enroll].to_csv(os.path.join(output_data_dir, 'train_features_35.csv'))
-

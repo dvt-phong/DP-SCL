@@ -1,3 +1,24 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Shared neural-network layers, temporal augmentations, and supervised
+  contrastive loss used by the DP-SCL model.
+
+Reference sources:
+  DP-SCL manuscript supplied with this project:
+  "Student Dropout Prediction in Online Courses Based on Supervised Contrastive
+  Learning", Doan Van Thanh Phong et al.
+  
+  Supervised Contrastive Learning, Khosla et al., NeurIPS 2020:
+  https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html
+
+  SupContrast PyTorch reference implementation by HobbitLong:
+  https://github.com/HobbitLong/SupContrast
+
+  CA-TFHN MySelfAttention reference by codeds27:
+  https://github.com/codeds27/CA-TFHN/blob/main/src/models.py
+"""
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -55,6 +76,8 @@ class MySelfAttention(nn.Module):
 
 
 class LearnableQueryPool(nn.Module):
+    """Attentive pooling from the DP-SCL manuscript, implemented with MHA."""
+
     def __init__(self, hidden_dim):
         super().__init__()
         self.query = nn.Parameter(torch.randn(1, 1, hidden_dim))
@@ -68,6 +91,8 @@ class LearnableQueryPool(nn.Module):
 
 
 class SupConLoss(nn.Module):
+    """Supervised contrastive loss based on Khosla et al. and SupContrast."""
+
     def __init__(self, temperature=0.07):
         super().__init__()
         self.temperature = temperature
@@ -137,19 +162,27 @@ class EarlyPredictionMask(nn.Module):
 
 
 class AugmentationModule(nn.Module):
+    """Create the two DP-SCL contrastive views described in the manuscript."""
+
     def __init__(self, time_mask_ratio=0.15, feat_mask_ratio=0.15, noise_std=0.05):
         super().__init__()
         self.time_mask_ratio = time_mask_ratio
         self.feat_mask_ratio = feat_mask_ratio
         self.noise_std = noise_std
 
-    def _augment_one(self, x):
+    def _time_view(self, x):
         batch_size, timesteps_count, feature_count = x.shape
         out = x.clone()
         time_mask = (torch.rand(batch_size, timesteps_count, 1, device=x.device) > self.time_mask_ratio).float()
+        out = out * time_mask
+        return out + torch.randn_like(out) * self.noise_std
+
+    def _feature_view(self, x):
+        batch_size, _, feature_count = x.shape
+        out = x.clone()
         feat_mask = (torch.rand(batch_size, 1, feature_count, device=x.device) > self.feat_mask_ratio).float()
-        out = out * time_mask * feat_mask
+        out = out * feat_mask
         return out + torch.randn_like(out) * self.noise_std
 
     def forward(self, x):
-        return self._augment_one(x), self._augment_one(x)
+        return self._time_view(x), self._feature_view(x)

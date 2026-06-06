@@ -1,3 +1,20 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Convert XuetangX/KDD Cup processed tables into the temporal NPZ
+  format consumed by DP-SCL.
+
+Reference source:
+  Adapted from CA-TFHN by codeds27:
+  https://github.com/codeds27/CA-TFHN
+  Original file:
+  https://github.com/codeds27/CA-TFHN/blob/main/src/dataprocess/2_table_2_numpy.py
+
+Adaptation notes:
+  The 35-day action ordering and tensor reshape to (N, 5, 7, 22) follow
+  CA-TFHN. The saved NPZ is used by this repository's DP-SCL training runner.
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -47,4 +64,3 @@ test_data = np.reshape(test_data, newshape=(len(test_data), 5, 7, 22))
 np.savez(os.path.join(output_data_dir, 'all_data_std'), t_data=train_data, t_label=train_truth, t_context=train_context,
          v_data=test_data,
          v_label=test_truth, v_context=test_context)
-

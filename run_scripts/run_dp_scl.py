@@ -1,3 +1,14 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Convenience launcher that runs train_experiment.py from the project
+  root.
+
+Reference source:
+  This launcher is project utility code for DP-SCL and is not copied from an
+  external project.
+"""
+
 import os
 import sys
 

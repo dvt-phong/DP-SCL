@@ -4,6 +4,53 @@ DP-SCL is a PyTorch implementation for MOOC dropout prediction using supervised 
 
 This repository has been trimmed to DP-SCL only. Alternative model families and non-DP-SCL training paths have been removed.
 
+## Code Origin and Attribution
+
+This project is a DP-SCL implementation for MOOC dropout prediction. It is not
+based wholesale on CA-TFHN. CA-TFHN is cited only for components that were
+copied, adapted, or directly referenced. The supervised contrastive learning
+parts use the SupCon paper and SupContrast implementation as their primary
+references.
+
+Source notes by component:
+
+- DP-SCL architecture and training objective follow the project manuscript:
+  *Student Dropout Prediction in Online Courses Based on Supervised Contrastive
+  Learning*, Doan Van Thanh Phong et al. The manuscript describes two augmented
+  views, a shared LSTM + Multi-Head Attention + attentive pooling encoder, a
+  projection head for SupCon loss, and a BCE classifier.
+- `src/dataprocess/0_process_user_activity_logs.py`,
+  `src/dataprocess/1_process_user_contextual_features.py`, and
+  `src/dataprocess/2_table_2_numpy.py` are adapted from the corresponding
+  CA-TFHN preprocessing files:
+  <https://github.com/codeds27/CA-TFHN/tree/main/src/dataprocess>
+- `src/models/common.py::MySelfAttention` is adapted from CA-TFHN's
+  `MySelfAttention` in `src/models.py`:
+  <https://github.com/codeds27/CA-TFHN/blob/main/src/models.py>
+- CA-TFHN paper reference for the adapted MOOC preprocessing/attention context:
+  Liang, G., Qian, Z., Wang, S., Hao, P. (2023). *MOOCs Dropout Prediction via
+  Classmates Augmented Time-Flow Hybrid Network*. ICONIP 2023, pp. 405-416.
+- `src/models/supcon.py::SupConEncoder` is a project-specific DP-SCL encoder.
+  It is not copied from CA-TFHN or SupContrast. It uses standard PyTorch
+  `nn.LSTM` and `nn.MultiheadAttention` modules to encode temporal learner
+  activity sequences.
+- `src/models/common.py::SupConLoss`,
+  `src/models/supcon.py::SupConProjectionHead`, the two-view training path,
+  and the contrastive objective are based primarily on supervised contrastive
+  learning:
+  <https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html>
+  and the PyTorch reference implementation SupContrast:
+  <https://github.com/HobbitLong/SupContrast>
+- `src/dataprocess/oulad_preprocess.py` and
+  `src/dataprocess/snap_preprocess.py` are DP-SCL dataset adapters, not copied
+  from CA-TFHN. Dataset references:
+  OULAD <https://analyse.kmi.open.ac.uk/open_dataset> and SNAP ACT-MOOC
+  <https://snap.stanford.edu/data/act-mooc.html>.
+
+Note: if redistributing adapted CA-TFHN source publicly, verify upstream
+permissions because the CA-TFHN repository did not expose a license file during
+this attribution pass.
+
 ## Repository Layout
 
 - `train_experiment.py`: DP-SCL protocol runner for one or more seeds.

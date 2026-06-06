@@ -1,4 +1,20 @@
 """
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Build a SNAP ACT-MOOC temporal NPZ for DP-SCL cross-dataset
+  experiments.
+
+Reference sources:
+  SNAP Stanford MOOC Actions dataset:
+  https://snap.stanford.edu/data/act-mooc.html
+
+Adaptation notes:
+  This is a DP-SCL dataset adapter, not copied from CA-TFHN. It engineers
+  SNAP-specific action-count, feature-mean, and unique-target features, then
+  saves the temporal NPZ format expected by DP-SCL.
+"""
+
+"""
 SNAP MOOC Preprocessing: 3 TSV → (N, 5, 7, 6) tensor → .npz
 
 Pipeline:

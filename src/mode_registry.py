@@ -1,3 +1,13 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Central registry for supported experiment modes.
+
+Reference source:
+  This file is DP-SCL project utility code. It narrows the repository to the
+  supervised-contrastive DP-SCL mode while preserving a stable mode interface.
+"""
+
 DP_SCL_MODE = "dp_scl"
 DP_SCL_BACKEND_MODE = "supcon_lstm_attn"
 ALL_MODES = frozenset({DP_SCL_MODE})

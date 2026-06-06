@@ -1,3 +1,17 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Compatibility wrapper for running the DP-SCL experiment runner with
+  command-line flags similar to the original CA-TFHN entry point.
+
+Reference source:
+  CA-TFHN GitHub repository by codeds27:
+  https://github.com/codeds27/CA-TFHN
+
+  Original CA-TFHN train entry point:
+  https://github.com/codeds27/CA-TFHN/blob/main/train.py
+"""
+
 import sys
 
 from train_experiment import main

@@ -1,3 +1,13 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Validate temporal NPZ files before running DP-SCL experiments.
+
+Reference source:
+  This file is project utility code for DP-SCL and is not copied from an
+  external project.
+"""
+
 import argparse
 import os
 import sys

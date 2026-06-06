@@ -1,3 +1,22 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: DP-SCL model for MOOC dropout prediction with supervised
+  contrastive learning.
+
+Reference sources:
+  DP-SCL manuscript supplied with this project:
+  "Student Dropout Prediction in Online Courses Based on Supervised Contrastive
+  Learning", Doan Van Thanh Phong et al.
+
+  Supervised Contrastive Learning, Khosla et al., NeurIPS 2020:
+  https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html
+
+  SupContrast PyTorch reference implementation by HobbitLong:
+  https://github.com/HobbitLong/SupContrast
+
+"""
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -11,6 +30,8 @@ from .common import (
 
 
 class SupConEncoder(nn.Module):
+    """DP-SCL encoder: LSTM -> MHA + residual norm -> attentive pooling."""
+
     def __init__(self, input_size=22, hidden_size=128, num_heads=4, dropout=0.1, num_layers=1):
         super().__init__()
         self.rnn = nn.LSTM(
@@ -38,6 +59,8 @@ class SupConEncoder(nn.Module):
 
 
 class SupConProjectionHead(nn.Module):
+    """Two-layer projection head used only for supervised contrastive loss."""
+
     def __init__(self, in_dim=128, proj_dim=128):
         super().__init__()
         self.net = nn.Sequential(
@@ -51,6 +74,8 @@ class SupConProjectionHead(nn.Module):
 
 
 class SupConClassifier(nn.Module):
+    """Dropout classifier trained with BCEWithLogitsLoss."""
+
     def __init__(self, in_dim=128, hidden_dim=64, dropout=0.3, num_hidden_layers=1):
         super().__init__()
         layers = [nn.Linear(in_dim, hidden_dim), nn.ReLU(), nn.Dropout(dropout)]
@@ -67,6 +92,8 @@ class SupConClassifier(nn.Module):
 
 
 class DPSCLModel(nn.Module):
+    """Project implementation of the DP-SCL forward path from the manuscript."""
+
     ENCODER_MAP = {
         "dp_scl": "lstm_attn",
         "supcon_lstm_attn": "lstm_attn",
@@ -138,6 +165,7 @@ class DPSCLModel(nn.Module):
     def forward(self, batch):
         x = self._preprocess(batch)
         if self.training:
+            # Training follows the paper: two augmented views share the encoder.
             view1, view2 = self.augment(x)
             h1 = self.encoder(view1)
             h2 = self.encoder(view2)

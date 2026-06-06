@@ -1,3 +1,22 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Main experiment runner for supervised-contrastive MOOC dropout
+  prediction across one or more random seeds.
+
+Reference sources:
+  DP-SCL manuscript supplied with this project:
+  "Student Dropout Prediction in Online Courses Based on Supervised Contrastive
+  Learning", Doan Van Thanh Phong et al.
+  
+  Supervised Contrastive Learning, Khosla et al., NeurIPS 2020:
+  https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html
+
+  SupContrast PyTorch reference implementation by HobbitLong:
+  https://github.com/HobbitLong/SupContrast
+
+"""
+
 import argparse
 import csv
 import json
@@ -31,7 +50,7 @@ def parse_args():
     parser.add_argument("--split", nargs=3, type=float, default=[0.60, 0.10, 0.30], metavar=("TRAIN", "VAL", "TEST"))
     parser.add_argument("--max-epochs", type=int, default=200)
     parser.add_argument("--patience", type=int, default=30)
-    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--hidden-size", type=int, default=128)
     parser.add_argument("--lambda-con", type=float, default=0.1)
@@ -214,6 +233,7 @@ def train_dp_scl(x, y, train_idx, val_idx, test_idx, args, ds_config, device, ch
             logits, z1, z2 = model({"batch_size": seq_feat.shape[0], "seq_feat": seq_feat})
             bce_loss = bce(logits, y_batch)
             supcon_loss = supcon(torch.stack([z1, z2], dim=1), y_batch.view(-1))
+            # DP-SCL objective from the manuscript: classification + SupCon.
             loss = bce_loss + args.lambda_con * supcon_loss
             loss.backward()
             optimizer.step()

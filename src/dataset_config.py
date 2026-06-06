@@ -1,4 +1,15 @@
-"""Dataset configuration for DP-SCL temporal NPZ files."""
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Dataset metadata for temporal NPZ files used by DP-SCL.
+
+Reference sources:
+  The XuetangX/KDD Cup entry is compatible with the adapted CA-TFHN
+  preprocessing scripts, which use 35 days = 5 weeks x 7 days and 22 action
+  types:
+  https://github.com/codeds27/CA-TFHN
+  OULAD and SNAP entries are DP-SCL additions for cross-dataset experiments.
+"""
 
 DATASET_CONFIGS = {
     "xuetangx": {

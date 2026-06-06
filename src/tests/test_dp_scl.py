@@ -1,3 +1,12 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Smoke tests for the DP-SCL model forward pass and SupCon loss.
+
+Reference source:
+  This file is project-specific test code for the DP-SCL implementation.
+"""
+
 import torch
 
 from src.models import DPSCLModel, SupConLoss

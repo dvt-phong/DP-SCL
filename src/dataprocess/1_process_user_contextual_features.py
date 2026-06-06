@@ -1,3 +1,21 @@
+"""
+Origin and attribution:
+  Project: DP-SCL.
+  Purpose: Add XuetangX/KDD Cup contextual features to the 35-day activity
+  tables before converting them to NumPy tensors.
+
+Reference source:
+  Adapted from CA-TFHN by codeds27:
+  https://github.com/codeds27/CA-TFHN
+  Original file:
+  https://github.com/codeds27/CA-TFHN/blob/main/src/dataprocess/1_process_user_contextual_features.py
+
+Adaptation notes:
+  The demographic/course-count/category feature pipeline follows CA-TFHN.
+  Local DP-SCL changes include adding cluster_label loading from
+  datastore/cluster and importing NumPy for that step.
+"""
+
 import math
 import os
 import pickle as pkl
@@ -97,4 +115,3 @@ for i, n_f in tqdm(enumerate(num_feats)):
     all_feat[n_f] = newX[:, i]
 all_feat.loc[train_feat.index].to_csv(os.path.join(output_data_dir, 'train_feat_35_final.csv'))
 all_feat.loc[test_feat.index].to_csv(os.path.join(output_data_dir, 'test_feat_35_final.csv'))
-
