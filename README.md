@@ -78,20 +78,20 @@ stratified splits for each seed using the default ratio
 Quick run on XuetangX:
 
 ```bash
-python run_scripts/run_dp_scl.py -indir . -outdir . --dataset xuetangx --max-epochs 15
+python run_scripts/run_dp_scl.py -indir . -outdir . --dataset xuetangx --max-epochs 200
 ```
 
 Run the main training script directly:
 
 ```bash
-python train_experiment.py -indir . -outdir . --dataset xuetangx --seeds 1 11 111 1111 11111 --max-epochs 15
+python train_experiment.py -indir . -outdir . --dataset xuetangx --seeds 1 11 111 1111 11111 --max-epochs 200
 ```
 
 Run on another dataset:
 
 ```bash
-python train_experiment.py -indir . -outdir . --dataset oulad --max-epochs 15
-python train_experiment.py -indir . -outdir . --dataset snap --max-epochs 15
+python train_experiment.py -indir . -outdir . --dataset oulad --max-epochs 200
+python train_experiment.py -indir . -outdir . --dataset snap --max-epochs 200
 ```
 
 Common arguments:
