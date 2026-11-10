@@ -1,10 +1,5 @@
 numpy
-pandas
-scipy
 scikit-learn
-statsmodels
 torch
-tqdm
-plotly
-kaleido
 pytest
+

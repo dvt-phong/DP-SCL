@@ -21,8 +21,5 @@ def make_dp_scl_param_dict(args, ds_config):
         "supcon_cls_dropout": 0.3,
         "supcon_num_layers": args.num_layers,
         "supcon_cls_hidden_layers": args.cls_layers,
-        "use_action_weight": False,
-        "use_early_prediction": False,
-        "early_min_weeks": 2,
     }
 

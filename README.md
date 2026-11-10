@@ -1,80 +1,58 @@
-# DP-SCL
+# DP-SCL: Student Dropout Prediction in Online Courses Based on Supervised Contrastive Learning
 
-DP-SCL is a model for predicting student dropout in MOOC courses using
-Supervised Contrastive Learning. Each learner-course record is represented as a
-temporal activity sequence; the model learns a behavior representation and then
-classifies the dropout probability.
+Official PyTorch implementation of **DP-SCL**, a deep learning framework for predicting student dropout in Massive Open Online Courses (MOOCs) using Supervised Contrastive Learning.
 
-## Model
+- **Paper:** [Student dropout prediction in online courses based on supervised contrastive learning](https://hjs.huflit.edu.vn/index.php/hjs/article/view/448) (*Dự đoán tình trạng bỏ học của sinh viên trong các khóa học trực tuyến dựa trên học tương phản có giám sát*)
+- **Authors:** Doan Van Thanh Phong, Le Khac Toan, Le Van Vinh, Daniel Ambach, Tran Van Lang
+- **Journal:** HUFLIT Journal of Science, Vol. 10, No. 4, pp. 1–11, 2026
 
-DP-SCL has three main components:
+---
 
-- **Temporal encoder**: reshapes the activity tensor
-  `(week_count, days_per_week, activity_num)` into a temporal sequence, then
-  encodes it with LSTM and Multi-Head Attention.
-- **Projection head**: creates embeddings for Supervised Contrastive Loss.
-  During training, each sample is augmented into two views using time masking,
-  feature masking, and noise.
-- **Classifier**: receives the encoder representation and predicts dropout with
-  `BCEWithLogitsLoss`.
+## Model Overview
 
-Training loss:
+![DP-SCL Architecture](docs/DP-SCL.png)
 
-```text
-loss = BCEWithLogitsLoss(logits, label)
-     + lambda_con * SupConLoss([z1, z2], label)
-```
+Each learner–course enrollment record is represented as a temporal activity sequence over 35 days `(5 weeks × 7 days × A activity types)`. **DP-SCL** consists of four main stages:
 
-The repository supports three datasets: `xuetangx`, `oulad`, and `snap`.
+1. **Data Augmentation:** During training, each input activity sequence is augmented into two stochastic views (`View 1` via temporal masking + Gaussian noise, and `View 2` via feature masking + Gaussian noise).
+2. **Shared Temporal Encoder:** Both views pass through a weight-sharing encoder composed of an **LSTM** network, **Multi-Head Self-Attention** (with residual connection and LayerNorm), and **Learnable Query Attentive Pooling** to produce representations $h_1, h_2$.
+3. **Projection Head & Supervised Contrastive Loss:** A two-layer MLP projection head with $L_2$ normalization maps $h_1, h_2$ into unit-hypersphere embeddings $z_1, z_2$. **Supervised Contrastive Loss (SupCon)** pulls embeddings of enrollments sharing the same dropout label together while pushing different classes apart.
+4. **Classifier & Joint Objective:** An MLP classifier predicts the dropout probability from $h_1$ using Binary Cross-Entropy (`BCEWithLogitsLoss`). During inference, augmentation and the projection head are bypassed, and the model predicts directly from the clean input sequence.
 
-## Reference Sources
+$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{BCE}}(\hat{y}, y) + \lambda \cdot \mathcal{L}_{\text{SupCon}}(z_1, z_2, y)$$
 
-This implementation was written for the DP-SCL project and uses the following
-public references for architecture compatibility and loss implementation:
+---
 
-| Component | Reference |
-| --- | --- |
-| CA-TFHN baseline/code structure reference | https://github.com/codeds27/CA-TFHN |
-| CA-TFHN XuetangX data download script | https://github.com/codeds27/CA-TFHN/blob/main/dump_data.sh |
-| CA-TFHN feature extraction script | https://github.com/codeds27/CA-TFHN/blob/main/feat_extract.sh |
-| CA-TFHN data preprocessing package | https://github.com/codeds27/CA-TFHN/tree/main/src/dataprocess |
-| CA-TFHN `MySelfAttention` reference | https://github.com/codeds27/CA-TFHN/blob/main/src/models.py |
-| SupContrast PyTorch implementation | https://github.com/HobbitLong/SupContrast |
-| Supervised Contrastive Learning paper | https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html |
-
-## Main Structure
+## Project Structure
 
 ```text
 .
-|-- train.py                   # CLI entry point
-|-- src/
-|   `-- dpscl/                 # DP-SCL package
-|       |-- cli.py             # argument parsing
-|       |-- experiment.py      # multi-seed orchestration and output layout
-|       |-- trainer.py         # single-seed train/eval loop
-|       |-- data.py            # NPZ loading, seeding, DataLoader creation
-|       |-- splits.py          # stratified split helpers
-|       |-- metrics.py         # threshold selection, metrics, summary stats
-|       |-- reporting.py       # CSV and text report writers
-|       |-- datasets.py        # dataset metadata
-|       |-- modes.py           # mode constants
-|       |-- config.py          # shared constants and model params
-|       `-- model/             # DP-SCL model, layers, losses
-|-- tests/                     # smoke tests
-|-- datastore/                 # .npz data files
-|-- deleted/                   # parked files not used by the clean runtime
-|-- requirements.txt
-`-- README.md
+├── train.py                   # CLI entry point
+├── src/
+│   └── dpscl/                 # DP-SCL package
+│       ├── cli.py             # Command-line argument parsing
+│       ├── config.py          # Hyperparameters and model config builder
+│       ├── datasets.py        # Dataset metadata (xuetangx, oulad, snap)
+│       ├── data.py            # NPZ loading, seeding, and DataLoader creation
+│       ├── splits.py          # Stratified train/val/test split helpers
+│       ├── experiment.py      # Multi-seed experiment orchestration
+│       ├── trainer.py         # Single-seed training and evaluation loop
+│       ├── metrics.py         # Threshold selection (Val F1) and evaluation metrics
+│       ├── reporting.py       # CSV and text report writers
+│       ├── modes.py           # Mode definitions
+│       └── model/             # Neural network architecture
+│           ├── dp_scl.py      # DPSCLModel, SupConEncoder, ProjectionHead, Classifier
+│           ├── layers.py      # AugmentationModule, LearnableQueryPool
+│           └── losses.py      # SupConLoss
+├── docs/
+│   └── DP-SCL.png             # Model architecture diagram
+├── tests/
+│   └── test_dp_scl.py         # Smoke tests for model forward pass and SupConLoss
+├── datastore/                 # Preprocessed .npz dataset files (git-ignored)
+└── requirements.txt
 ```
 
-The training flow is intentionally linear:
-
-```text
-train.py -> src/dpscl/cli.py
-         -> src/dpscl/experiment.py
-         -> src/dpscl/trainer.py
-         -> src/dpscl/model/
-```
+---
 
 ## Installation
 
@@ -84,117 +62,70 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-For GPU training, install a PyTorch build that matches the CUDA version on your
-machine before running experiments.
+---
 
-## Data
+## Data Preparation
 
-Place the `.npz` files in the `datastore/` directory:
+Place the preprocessed `.npz` dataset files in the `datastore/` directory:
 
-| Dataset | File |
-| --- | --- |
-| `xuetangx` | `datastore/all_data_std.npz` |
-| `oulad` | `datastore/oulad_data_std.npz` |
-| `snap` | `datastore/snap_data_std.npz` |
+| Dataset | File Path | Shape per Sample `(W, D, A)` |
+| :--- | :--- | :--- |
+| **XuetangX** (KDD Cup 2015) | `datastore/all_data_std.npz` | `(5, 7, 22)` |
+| **OULAD** | `datastore/oulad_data_std.npz` | `(5, 7, 20)` |
+| **SNAP MOOC** | `datastore/snap_data_std.npz` | `(5, 7, 6)` |
 
-Each file must contain:
+Each `.npz` file contains `t_data`, `t_label`, `v_data`, and `v_label`. For each random seed, the pipeline combines all records and performs a stratified split (`60% train / 10% validation / 30% test` by default).
 
-```text
-t_data, t_label
-v_data, v_label
-```
-
-The training script combines the original train/test arrays, then creates
-stratified splits for each seed using the default ratio
-`60% train / 10% validation / 30% test`.
+---
 
 ## Usage
 
-Quick run on XuetangX:
+Run the 5-seed experiment (`1, 11, 111, 1111, 11111`) on XuetangX:
 
 ```bash
 python train.py -indir . -outdir . --dataset xuetangx --max-epochs 200
 ```
 
-By default, this runs the five reported seeds:
-
-```text
-1 11 111 1111 11111
-```
-
-You can also pass them explicitly:
-
-```bash
-python train.py -indir . -outdir . --dataset xuetangx --seeds 1 11 111 1111 11111 --max-epochs 200
-```
-
-Run on another dataset:
+Run on OULAD or SNAP:
 
 ```bash
 python train.py -indir . -outdir . --dataset oulad --max-epochs 200
 python train.py -indir . -outdir . --dataset snap --max-epochs 200
 ```
 
-Common arguments:
+Key options:
 
-```text
---seeds           random seeds, default 1 11 111 1111 11111
---batch-size      batch size, default 256
---lr              learning rate, default 1e-4
---hidden-size     encoder hidden size, default 128
---lambda-con      SupCon loss weight, default 0.1
---temperature     SupCon temperature, default 0.07
---max-epochs      maximum number of epochs
---patience        early stopping patience
+| Argument | Default | Description |
+| :--- | :--- | :--- |
+| `--dataset` | `xuetangx` | Dataset choice: `xuetangx`, `oulad`, `snap` |
+| `--seeds` | `1 11 111 1111 11111` | Random seeds for stratified splitting & training |
+| `--batch-size` | `256` | Training batch size |
+| `--lr` | `1e-4` | Adam learning rate |
+| `--hidden-size` | `128` | Encoder hidden dimension & projection dimension |
+| `--lambda-con` | `0.1` | Weight $\lambda$ for Supervised Contrastive Loss |
+| `--temperature` | `0.07` | Temperature $\tau$ for Supervised Contrastive Loss |
+| `--mask-ratio` | `0.15` | Masking ratio for temporal and feature views |
+| `--noise-std` | `0.05` | Gaussian noise standard deviation |
+| `--max-epochs` | `200` | Maximum training epochs |
+| `--patience` | `30` | Early stopping patience on Validation AUC |
+
+Outputs (`config.json`, `per_seed_results.csv`, `epoch_history.csv`, `summary_results.csv`, `report.txt`, and `checkpoints/`) are saved to `results/dp_scl_<timestamp>/`.
+
+---
+
+## Citation
+
+If you find this repository useful in your research, please cite our paper:
+
+```bibtex
+@article{doan2026dpscl,
+  title   = {Student dropout prediction in online courses based on supervised contrastive learning},
+  author  = {Doan, Van Thanh Phong and Le, Khac Toan and Le, Van Vinh and Ambach, Daniel and Tran, Van Lang},
+  journal = {HUFLIT Journal of Science},
+  volume  = {10},
+  number  = {4},
+  pages   = {1--11},
+  year    = {2026},
+  url     = {https://hjs.huflit.edu.vn/index.php/hjs/article/view/448}
+}
 ```
-
-## Outputs
-
-Each run creates a directory:
-
-```text
-results/dp_scl_<timestamp>/
-```
-
-Main files:
-
-```text
-config.json
-checkpoints/
-splits/
-per_seed_results.csv
-epoch_history.csv
-summary_results.csv
-report.txt
-```
-
-Main metrics include AUC, accuracy, precision, recall, and F1. The classification
-threshold is selected on the validation split by maximizing F1, then applied to
-the test split.
-
-## Quick Test
-
-```bash
-python -m pytest tests/test_dp_scl.py
-```
-
-## Developer Notes
-
-When changing the training pipeline, prefer editing the focused modules under
-`src/dpscl/`:
-
-| Task | File |
-| --- | --- |
-| Add or change CLI flags | `src/dpscl/cli.py` |
-| Change run directory layout or multi-seed flow | `src/dpscl/experiment.py` |
-| Change training objective or early stopping | `src/dpscl/trainer.py` |
-| Change data loading or tensor conversion | `src/dpscl/data.py` |
-| Change train/val/test split logic | `src/dpscl/splits.py` |
-| Change metrics or threshold selection | `src/dpscl/metrics.py` |
-| Change result files or report text | `src/dpscl/reporting.py` |
-| Change neural network architecture | `src/dpscl/model/` |
-
-Files that are not part of the clean training runtime were moved to
-`deleted/` for review before permanent deletion. This includes old launchers,
-plot outputs, reports, exploratory scripts, local docs, and preprocessing
-helpers.

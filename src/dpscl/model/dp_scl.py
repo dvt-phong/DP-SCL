@@ -22,9 +22,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from .layers import (
-    ActionWeightedInput,
     AugmentationModule,
-    EarlyPredictionMask,
     LearnableQueryPool,
 )
 
@@ -116,17 +114,6 @@ class DPSCLModel(nn.Module):
         self.week_count = param_dict.get("week_count", 5)
         self.days_per_week = param_dict.get("cnn_in_channels", 7)
         self.activity_num = input_size
-        self.use_action_weight = param_dict.get("use_action_weight", False)
-        self.use_early = param_dict.get("use_early_prediction", False)
-
-        if self.use_action_weight:
-            self.action_weighting = ActionWeightedInput(num_actions=input_size)
-        if self.use_early:
-            self.early_mask = EarlyPredictionMask(
-                week_count=self.week_count,
-                days_per_week=self.days_per_week,
-                min_weeks=param_dict.get("early_min_weeks", 2),
-            )
 
         self.augment = AugmentationModule(
             time_mask_ratio=mask_ratio,
@@ -151,12 +138,7 @@ class DPSCLModel(nn.Module):
         batch_size = batch["batch_size"]
         seq_feat = batch["seq_feat"][:batch_size]
         total_steps = self.week_count * self.days_per_week
-        x = seq_feat.view(batch_size, total_steps, self.activity_num)
-        if self.use_action_weight:
-            x = self.action_weighting(x)
-        if self.use_early:
-            x = self.early_mask(x)
-        return x
+        return seq_feat.view(batch_size, total_steps, self.activity_num)
 
     def forward_single(self, batch):
         x = self._preprocess(batch)

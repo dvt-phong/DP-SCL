@@ -37,7 +37,9 @@ logs/
 *.log
 
 # === Local docs / notes ===
-docs/
+docs/*
+!docs/DP-SCL.png
+analysis/
 
 # === Temporary & Backup files ===
 *.tmp

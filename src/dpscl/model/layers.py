@@ -1,81 +1,25 @@
 """
 Origin and attribution:
   Project: DP-SCL.
-  Purpose: Shared neural-network layers, temporal augmentations, and supervised
-  contrastive loss used by the DP-SCL model.
+  Purpose: Shared neural-network layers and temporal augmentations used by the
+  DP-SCL model.
 
 Reference sources:
-  DP-SCL manuscript supplied with this project:
-  "Student Dropout Prediction in Online Courses Based on Supervised Contrastive
-  Learning", Doan Van Thanh Phong et al.
-  
+  DP-SCL paper:
+  "Student dropout prediction in online courses based on supervised contrastive
+  learning", Doan Van Thanh Phong et al., HUFLIT Journal of Science, 2026:
+  https://hjs.huflit.edu.vn/index.php/hjs/article/view/448
+
   Supervised Contrastive Learning, Khosla et al., NeurIPS 2020:
   https://proceedings.neurips.cc/paper/2020/hash/d89a66c7c80a29b1bdbab0f2a1a94af8-Abstract.html
-
-  SupContrast PyTorch reference implementation by HobbitLong:
-  https://github.com/HobbitLong/SupContrast
-
-  CA-TFHN MySelfAttention reference by codeds27:
-  https://github.com/codeds27/CA-TFHN/blob/main/src/models.py
 """
 
 import torch
 from torch import nn
 
 
-class MySelfAttention(nn.Module):
-    def __init__(self, week_count, input_features, num_attention_heads, attention_features):
-        super().__init__()
-        self.week_count = week_count
-        self.input_features = input_features
-        self.num_attention_heads = num_attention_heads
-        self.attention_features = attention_features
-        self.attention_head_size = int(attention_features / num_attention_heads)
-        self.all_head_size = attention_features
-
-        pe = torch.zeros((week_count, input_features))
-        for i in range(1, pe.shape[0] + 1):
-            for j in range(1, pe.shape[1] + 1):
-                if j % 2 != 0:
-                    twob = j - 1
-                    expr = torch.exp(torch.tensor(twob * (-1 * torch.log(torch.tensor(10000 / pe.shape[0] + 1)))))
-                    pe[i - 1][j - 1] = torch.cos(expr * i)
-                else:
-                    twob = j
-                    expr = torch.exp(torch.tensor(twob * (-1 * torch.log(torch.tensor(10000 / pe.shape[0] + 1)))))
-                    pe[i - 1][j - 1] = torch.sin(expr * i)
-        self.register_buffer("PE", pe)
-        self.key_layer = nn.Linear(input_features, attention_features)
-        self.query_layer = nn.Linear(input_features, attention_features)
-        self.value_layer = nn.Linear(input_features, attention_features)
-
-    def trans_to_multiple_heads(self, x):
-        new_size = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
-        x = x.view(new_size)
-        return x.permute(0, 2, 1, 3)
-
-    def forward(self, input_matrix):
-        input_matrix = input_matrix + self.PE
-        key = self.key_layer(input_matrix)
-        query = self.query_layer(input_matrix)
-        value = self.value_layer(input_matrix)
-        key_heads = self.trans_to_multiple_heads(key)
-        query_heads = self.trans_to_multiple_heads(query)
-        value_heads = self.trans_to_multiple_heads(value)
-
-        attention_scores = torch.matmul(query_heads, key_heads.permute(0, 1, 3, 2))
-        attention_scores = attention_scores / torch.sqrt(
-            torch.tensor(self.attention_head_size, device=input_matrix.device)
-        )
-        attention_probs = F.softmax(attention_scores, dim=-1)
-        attention_context = torch.matmul(attention_probs, value_heads)
-        attention_context = attention_context.permute(0, 2, 1, 3).contiguous()
-        attention_newsize = attention_context.size()[:-2] + (self.all_head_size,)
-        return attention_context.view(*attention_newsize)
-
-
 class LearnableQueryPool(nn.Module):
-    """Attentive pooling from the DP-SCL manuscript, implemented with MHA."""
+    """Attentive pooling from the DP-SCL paper, implemented with MHA."""
 
     def __init__(self, hidden_dim):
         super().__init__()
@@ -89,46 +33,8 @@ class LearnableQueryPool(nn.Module):
         return context.squeeze(1), weights.squeeze(1)
 
 
-class ActionWeightedInput(nn.Module):
-    def __init__(self, num_actions=22):
-        super().__init__()
-        self.num_actions = num_actions
-        self.raw_weight = nn.Parameter(torch.zeros(num_actions))
-
-    def forward(self, x):
-        weights = torch.softmax(self.raw_weight, dim=0) * self.num_actions
-        return x * weights.unsqueeze(0).unsqueeze(0)
-
-    def get_weights(self):
-        return (torch.softmax(self.raw_weight, dim=0) * self.num_actions).detach().cpu()
-
-
-class EarlyPredictionMask(nn.Module):
-    def __init__(self, week_count=5, days_per_week=7, min_weeks=2):
-        super().__init__()
-        self.week_count = week_count
-        self.days_per_week = days_per_week
-        self.min_weeks = min_weeks
-        self.eval_weeks = week_count
-
-    def forward(self, x):
-        batch_size, timesteps_count, _ = x.shape
-        if self.training:
-            keep = torch.randint(self.min_weeks, self.week_count + 1, (batch_size,), device=x.device)
-        else:
-            keep = torch.full((batch_size,), self.eval_weeks, dtype=torch.long, device=x.device)
-
-        timesteps = torch.arange(timesteps_count, device=x.device).unsqueeze(0)
-        keep_days = (keep * self.days_per_week).unsqueeze(1)
-        mask = (timesteps < keep_days).float()
-        return x * mask.unsqueeze(-1)
-
-    def set_eval_weeks(self, n):
-        self.eval_weeks = n
-
-
 class AugmentationModule(nn.Module):
-    """Create the two DP-SCL contrastive views described in the manuscript."""
+    """Create the two DP-SCL contrastive views (time masking and feature masking)."""
 
     def __init__(self, time_mask_ratio=0.15, feat_mask_ratio=0.15, noise_std=0.05):
         super().__init__()
@@ -137,7 +43,7 @@ class AugmentationModule(nn.Module):
         self.noise_std = noise_std
 
     def _time_view(self, x):
-        batch_size, timesteps_count, feature_count = x.shape
+        batch_size, timesteps_count, _ = x.shape
         out = x.clone()
         time_mask = (torch.rand(batch_size, timesteps_count, 1, device=x.device) > self.time_mask_ratio).float()
         out = out * time_mask
@@ -152,3 +58,4 @@ class AugmentationModule(nn.Module):
 
     def forward(self, x):
         return self._time_view(x), self._feature_view(x)
+
